@@ -130,6 +130,17 @@ Ein **Regler über dem Kachel-Grid** (analog Windows Explorer „Symbol → gro�
 - **Ausdrücklich NICHT Masonry** (variable Höhe / feste Spalten) – bewusst die andere Achse: Höhe fix pro Zeile, Breite variabel.
 - Gewählte Stufe in den **Settings persistieren**.
 
+### 9. Duplikat-Erkennung — ❌ OFFEN
+Doppelt vorhandene Bilder im Bestand finden.
+- **Stufe 1 (zuerst, einfach & zuverlässig):** exakte Duplikate über einen **Hash der Bilddaten** (z. B. SHA-256 der base64/Bytes). Deckt versehentliches Mehrfach-Hochladen *derselben* Datei ab. Eindeutig, keine Graubereiche.
+- **Stufe 2 (später, optional):** ähnliche/fast gleiche Bilder über **perceptual hashing** (erkennt andere Auflösung/Ausschnitt/Kompression). Aufwändiger, mit Graubereichen (Schwellwert nötig, mögliche Fehltreffer).
+- **Offene Entscheidung:** Prüfung **beim Import** (Warnung vor dem Hinzufügen) und/oder **nachträglich** als „Duplikate finden"-Funktion über den ganzen Bestand. Beides denkbar — beim Import verhindert Dubletten früh, die Bestands-Funktion räumt Altbestand auf.
+
+### 10. Filter „ohne Tags" — ❌ OFFEN
+Sonderfilter in der Sidebar (analog zu „Reine Notizen" / „Mit Notizen"), der nur Fälle zeigt, die **keinerlei Tag-Zuordnung** haben: keine Werte in irgendeiner Gruppe **und** keine freien Tags.
+- **Zweck:** nach einem Massen-Import die noch **ungetaggten** Fälle als Arbeitsliste finden und nachträglich taggen.
+- Umsetzung passt ins bestehende Muster: neuer `ActiveFilter`-Typ (z. B. `untagged`) in `filter.ts` + Zähler in `viewCounts` + Sidebar-Eintrag unter „Ansicht".
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
