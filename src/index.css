@@ -1,0 +1,83 @@
+@import 'tailwindcss';
+
+/*
+ * PAKS Design-Tokens — Dark mode only.
+ * Single Source of Truth: hier definiert, von Tailwind-Utilities (z. B. bg-surface,
+ * text-accent) UND von handgeschriebenem CSS über var(--color-…) nutzbar.
+ * Werte stammen aus CLAUDE.md (Design-Prinzipien) + Prototyp-Tokens.
+ */
+@theme {
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-surface-2: #1c2330;
+  --color-border: #2a3444;
+
+  --color-accent: #2a7db8;
+  --color-accent-hover: #3a9ad8;
+  --color-accent-dim: #1a4f75;
+
+  --color-text: #e6edf3;
+  --color-text-muted: #7d8fa8;
+
+  --color-success: #2ea043;
+  --color-danger: #cf4f47;
+  --color-warning: #b8960a;
+
+  /* Notizen: durchgängiges goldgelbes Signal für „persönliche Notiz" */
+  --color-note: #d4c97a;
+  --color-note-bg: #1a1a10;
+  --color-note-border: #3a3a18;
+
+  --color-tag-bg: #1f2d3d;
+
+  --radius-card: 6px;
+  --radius-modal: 10px;
+
+  /* Inter wird in einer späteren Phase lokal gebündelt (kein CDN, Datenschutz).
+     Bis dahin System-Stack als Fallback. */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+ * Light Mode — überschreibt nur die Farb-Tokens. Alle Komponenten nutzen
+ * ausschließlich diese Variablen, daher kein Komponenten-Code nötig. Dark
+ * bleibt Default (Basis-@theme oben); Light greift via [data-theme="light"].
+ */
+:root[data-theme='light'] {
+  --color-bg: #f6f8fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1f5;
+  --color-border: #d0d7de;
+
+  --color-accent: #2a7db8;
+  --color-accent-hover: #246a99;
+  --color-accent-dim: #cfe4f2;
+
+  --color-text: #1f2328;
+  --color-text-muted: #5b6672;
+
+  --color-note: #6b5d0e;
+  --color-note-bg: #fbf6da;
+  --color-note-border: #e6da9a;
+
+  --color-tag-bg: #eef2f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+}

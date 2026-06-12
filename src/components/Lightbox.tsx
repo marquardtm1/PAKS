@@ -1,0 +1,189 @@
+import { useEffect, useState } from 'react'
+import type { Case, TagGroup } from '@/lib/types'
+import { caseChips } from '@/lib/tags'
+import { TagChip } from './TagChip'
+
+/**
+ * Vollbild-Ansicht eines Falls (PowerPoint-artig). Öffnet sich beim Klick auf
+ * eine Kachel und bleibt im aktuell gefilterten Set: Pfeiltasten ←/→ (und die
+ * Klick-Pfeile am Rand) blättern zum vorherigen/nächsten Fall, Esc schließt
+ * zurück zur Übersicht.
+ *
+ * Aufbau von oben nach unten: Titel (Kopfzeile mit Aktionen) · großes Bild ·
+ * Kategorie-Chips · aufklappbares Notizfeld ganz unten. Das Notizfeld klappt
+ * per Klick auf die Kopfzeile auf/zu (bewusst kein Hover — das flackerte beim
+ * Größenwechsel). Der Anfangszustand kommt aus den Einstellungen
+ * (notesExpandedByDefault) und ist danach pro Ansicht frei umschaltbar.
+ */
+export function Lightbox({
+  cases,
+  index,
+  tagGroups,
+  notesDefaultOpen,
+  onIndexChange,
+  onEdit,
+  onDelete,
+  onClose,
+}: {
+  cases: Case[]
+  index: number
+  tagGroups: TagGroup[]
+  notesDefaultOpen: boolean
+  onIndexChange: (i: number) => void
+  onEdit: (c: Case) => void
+  onDelete: (id: string) => void
+  onClose: () => void
+}) {
+  const c = cases[index]
+  const hasPrev = index > 0
+  const hasNext = index < cases.length - 1
+  const [notesOpen, setNotesOpen] = useState(notesDefaultOpen)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft' && hasPrev) onIndexChange(index - 1)
+      else if (e.key === 'ArrowRight' && hasNext) onIndexChange(index + 1)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [index, hasPrev, hasNext, onClose, onIndexChange])
+
+  // Set kann sich unter der Ansicht ändern (Filter/Löschen) — der Aufrufer
+  // klemmt den Index, hier nur defensiv abfangen.
+  if (!c) return null
+
+  const chips = caseChips(c, tagGroups)
+  const hasNotes = c.notes.trim() !== ''
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
+      {/* Kopfzeile: zentrierter Titel, Aktionen rechts (linker Spacer balanciert
+          die Zentrierung aus, damit der Titel wirklich mittig sitzt). */}
+      <div className="flex shrink-0 items-center gap-3 px-5 py-3.5">
+        <div className="flex-1" />
+        <h2 className="max-w-[55%] text-center text-lg font-semibold break-words whitespace-normal text-white">
+          {c.title || '(ohne Titel)'}
+        </h2>
+        <div className="flex flex-1 items-center justify-end gap-3">
+          <span className="text-text-muted shrink-0 text-xs tabular-nums">
+            {index + 1} / {cases.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => onEdit(c)}
+            className="bg-surface-2 border-border text-text hover:border-accent shrink-0 rounded-[var(--radius-card)] border px-3.5 py-1.5 text-[13px] transition-colors"
+          >
+            Bearbeiten
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Fall wirklich löschen?')) onDelete(c.id)
+            }}
+            className="bg-surface-2 border-border text-text-muted hover:border-danger hover:text-danger shrink-0 rounded-[var(--radius-card)] border px-3.5 py-1.5 text-[13px] transition-colors"
+          >
+            Löschen
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Schließen"
+            className="text-text-muted hover:text-text shrink-0 px-1.5 text-2xl leading-none"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      {/* Bildbereich mit seitlichen Navigationspfeilen */}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center px-16">
+        <NavArrow
+          side="left"
+          disabled={!hasPrev}
+          onClick={() => onIndexChange(index - 1)}
+        />
+
+        {c.image ? (
+          <img
+            src={c.image}
+            alt={c.title}
+            className="max-h-full max-w-full object-contain"
+          />
+        ) : (
+          <div className="max-h-full max-w-[640px] overflow-y-auto px-2 text-[16px] leading-relaxed whitespace-pre-wrap text-white">
+            {c.notes.trim() || c.description.trim() || '(kein Text)'}
+          </div>
+        )}
+
+        <NavArrow
+          side="right"
+          disabled={!hasNext}
+          onClick={() => onIndexChange(index + 1)}
+        />
+      </div>
+
+      {/* Fußbereich: Kategorie-Chips, darunter das aufklappbare Notizfeld */}
+      {(chips.length > 0 || (c.image && hasNotes)) && (
+        <div className="mx-auto w-full max-w-[1000px] shrink-0 px-5 pb-4">
+          {chips.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-1.5 py-3">
+              {chips.map((chip, i) => (
+                <TagChip key={i} chip={chip} />
+              ))}
+            </div>
+          )}
+
+          {/* Notizfeld nur bei Bild-Fällen mit Notiz — bei reinen Notizen ist der
+              Text bereits der zentrale Inhalt oben. */}
+          {c.image && hasNotes && (
+            <div className="border-border/50 border-t">
+              <button
+                type="button"
+                onClick={() => setNotesOpen((v) => !v)}
+                aria-expanded={notesOpen}
+                className="text-text-muted hover:text-text flex w-full items-center gap-2 py-2.5 text-left text-[13px] font-semibold tracking-[0.04em] uppercase transition-colors"
+              >
+                <span className="text-xs">{notesOpen ? '▾' : '▸'}</span>
+                📝 Notizen
+              </button>
+              {notesOpen && (
+                <div className="max-h-[30vh] overflow-y-auto pb-3 text-[16px] leading-relaxed whitespace-pre-wrap text-white">
+                  {c.notes}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function NavArrow({
+  side,
+  disabled,
+  onClick,
+}: {
+  side: 'left' | 'right'
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={side === 'left' ? 'Vorheriger Fall' : 'Nächster Fall'}
+      className={[
+        'absolute top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full text-3xl leading-none transition-colors',
+        side === 'left' ? 'left-2' : 'right-2',
+        disabled
+          ? 'text-text-muted cursor-default opacity-20'
+          : 'text-text-muted hover:bg-surface-2 hover:text-text',
+      ].join(' ')}
+    >
+      {side === 'left' ? '‹' : '›'}
+    </button>
+  )
+}

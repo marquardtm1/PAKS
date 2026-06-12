@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PAKS – Personal Archive &amp; Knowledge System</title>
+    <meta
+      name="description"
+      content="PAKS – lokal-first Bild- und Wissensarchiv für Radiologen. Keine Cloud, keine Server."
+    />
+    <script>
+      // Theme synchron vor dem ersten Paint setzen, um Flash beim Reload zu
+      // vermeiden. localStorage spiegelt nur settings.theme (source of truth
+      // bleibt der Snapshot); fehlt der Wert, greift Dark als Default-Basis.
+      try {
+        var t = localStorage.getItem('paks-theme')
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
