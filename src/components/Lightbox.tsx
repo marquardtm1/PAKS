@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
+import { normalizeVideoPath, toFileUrl } from '@/lib/video'
 import { TagChip } from './TagChip'
 
 /**
@@ -161,6 +162,13 @@ export function Lightbox({
         />
       </div>
 
+      {/* Video-Zugang (nur Video-Fälle): Pfad + Abspielen/Kopieren. */}
+      {c.videoPath && (
+        <div className="mx-auto w-full max-w-[1000px] shrink-0 px-5 pt-2">
+          <VideoAccess path={c.videoPath} />
+        </div>
+      )}
+
       {/* Fußbereich: Kategorie-Chips, darunter das aufklappbare Notizfeld */}
       {(chips.length > 0 || (c.image && hasNotes)) && (
         <div className="mx-auto w-full max-w-[1000px] shrink-0 px-5 pb-4">
@@ -197,6 +205,69 @@ export function Lightbox({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Video-Zugang im Detail: Pfad-Feld + zwei Knöpfe. „Abspielen" ist Best-Effort
+ * (window.open auf file:// — von Chromium aus http/localhost meist blockiert);
+ * „Kopieren" ist der verlässliche Weg (Pfad → Explorer/Finder einfügen). Der
+ * Pfad-bricht-Hinweis bleibt bewusst dezent.
+ */
+function VideoAccess({ path }: { path: string }) {
+  const [copied, setCopied] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  // Defensive Säuberung — auch falls ein Altbestand-Pfad noch Quotes trägt.
+  const clean = normalizeVideoPath(path)
+
+  const play = () => {
+    window.open(toFileUrl(clean), '_blank', 'noopener')
+  }
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(clean)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // Clipboard-API nicht verfügbar/erlaubt → Pfad markieren, Strg+C dem Nutzer.
+      inputRef.current?.select()
+    }
+  }
+
+  return (
+    <div className="border-border/50 border-t pt-2.5">
+      <div className="text-text-muted mb-1.5 flex items-center gap-2 text-[13px] font-semibold tracking-[0.04em] uppercase">
+        🎬 Video
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          ref={inputRef}
+          readOnly
+          value={clean}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="Pfad zur Videodatei"
+          className="bg-bg border-border text-text min-w-[200px] flex-1 rounded-[var(--radius-card)] border px-2.5 py-1.5 font-mono text-[12px] outline-none"
+        />
+        <button
+          type="button"
+          onClick={play}
+          className="bg-surface-2 border-border text-text hover:border-accent inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-card)] border px-3.5 py-1.5 text-[13px] transition-colors"
+        >
+          ▶ Abspielen
+        </button>
+        <button
+          type="button"
+          onClick={copy}
+          className="bg-surface-2 border-border text-text hover:border-accent inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-card)] border px-3.5 py-1.5 text-[13px] transition-colors"
+        >
+          {copied ? 'Kopiert ✓' : 'Kopieren'}
+        </button>
+      </div>
+      <p className="text-text-muted mt-1.5 text-[11px] leading-relaxed opacity-70">
+        „Abspielen" kann je nach Browser blockiert sein — dann „Kopieren" und im
+        Explorer/Finder einfügen. Pfad bricht bei Verschieben/Umbenennen.
+      </p>
     </div>
   )
 }

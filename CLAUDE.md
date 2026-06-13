@@ -153,14 +153,15 @@ Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N 
 
 > **Hinweis zu Option B (Strg+Klick-Markierung):** Die niedrigschwellige Markierung von Quiz-Schlüsselwörtern per **Strg+Klick auf ein Wort** in Titel/Notiz ist oben unter Option B bereits beschrieben — **niedrigschwellige Kuratierung statt automatischer Wortwahl**.
 
-### 12. Video-Referenzen (Referenz, nicht Einbettung) — ❌ OFFEN
+### 12. Video-Referenzen (Referenz, nicht Einbettung) — ✅ ERLEDIGT
 Use Case: **schnelles Auffinden eigener Lehr-/Fallvideos über Metadaten**, Abspielen **extern**. Video wird **NICHT in PAKS eingebettet oder abgespielt**, sondern nur **referenziert**.
-- **Gespeichert wird:** ein **Vorschaubild** (Thumbnail/Standbild), **Titel**, **Tags**, **Notizen** und ein **Verweis auf die Videodatei** (Pfad/Speicherort).
+- **Gespeichert wird:** ein **Vorschaubild** (Thumbnail/Standbild, im `image`-Feld), **Titel**, **Tags**, **Notizen** und ein **Verweis auf die Videodatei** (`videoPath`). Ein Fall mit `videoPath` ist ein Video-Fall.
 - **PAKS = durchsuchbarer Index** über diese Metadaten; **Abspielen über externen Player** („Datei öffnen").
 - **Vorteil:** hält PAKS **leicht** (nur Thumbnail + Pfad, **kein GB-Video** in der Datendatei / im JSON-Export), Video bleibt über Metadaten **auffindbar**.
-- **Passt zu Weg B** (Datei-/Ordnerzugriff) — Video im selben Ordner referenzierbar.
-- **Einschränkung:** die Referenz **bricht**, wenn die Videodatei **verschoben/umbenannt** wird.
-- **Offen:** Thumbnail **manuell setzen** oder **automatisch aus dem Video extrahieren**.
+- **Thumbnail:** automatisch via verstecktem `<video>` + Canvas (`src/lib/video.ts: extractVideoThumbnail`, Best-Effort); bei nicht dekodierbaren Formaten sauberer Fallback auf **manuell wählen** (Upload/Drag/Strg+V). Jederzeit manuell überschreibbar.
+- **Pfad:** browser-bedingt **manuell eingegeben** (Dateiauswahl gibt keinen absoluten OS-Pfad preis); die gewählte Videodatei dient nur der Thumbnail-Extraktion.
+- **Abspielen:** Best-Effort `window.open(file://…)` (Chromium blockt das von http/localhost meist); **„Kopieren"** (Pfad → Explorer/Finder einfügen) ist der verlässliche Weg. UI: Video-Sektion in der Lightbox, Play-Badge auf der Kachel, „Video"-Knopf in der Sidebar.
+- **Einschränkung (dezent im UI vermerkt):** die Referenz **bricht**, wenn die Videodatei **verschoben/umbenannt** wird oder auf einem anderen Rechner liegt.
 
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:

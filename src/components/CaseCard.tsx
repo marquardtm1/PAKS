@@ -31,6 +31,7 @@ export function CaseCard({
 }) {
   const chips = caseChips(c, tagGroups)
   const hasNote = c.notes.trim() !== ''
+  const isVideo = !!c.videoPath
 
   const commonProps = {
     type: 'button' as const,
@@ -46,7 +47,7 @@ export function CaseCard({
     ? 'border-accent ring-2 ring-accent'
     : 'hover:border-accent'
 
-  if (c.image === null) {
+  if (c.image === null && !isVideo) {
     const noteText = c.notes.trim() || c.description.trim() || '(kein Text)'
     return (
       <button
@@ -69,14 +70,37 @@ export function CaseCard({
       {...commonProps}
       className={`border-border bg-surface flex flex-col overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${selectionClass}`}
     >
-      <img
-        src={c.image}
-        alt={c.title}
-        draggable={false}
-        className="block aspect-square w-full shrink-0 bg-black object-cover"
-      />
+      <div className="relative aspect-square w-full shrink-0">
+        {c.image ? (
+          <img
+            src={c.image}
+            alt={c.title}
+            draggable={false}
+            className="block h-full w-full bg-black object-cover"
+          />
+        ) : (
+          // Video-Fall ohne extrahiertes Thumbnail: Platzhalter statt Bild.
+          <div className="flex h-full w-full items-center justify-center bg-black text-3xl">
+            🎬
+          </div>
+        )}
+        {isVideo && <PlayBadge />}
+      </div>
       <CardBody title={c.title} chips={chips} hasNote={hasNote} />
     </button>
+  )
+}
+
+/** Play-Symbol über dem Thumbnail — macht Video-Fälle auf einen Blick erkennbar. */
+function PlayBadge() {
+  return (
+    <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 ring-1 ring-white/70">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+          <polygon points="8 5 19 12 8 19 8 5" />
+        </svg>
+      </span>
+    </span>
   )
 }
 

@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Case, Settings, TagGroup } from '@/lib/types'
 import { cleanFilename, fileToDataUrl, splitFilename } from '@/lib/image'
+import { extractVideoThumbnail, normalizeVideoPath } from '@/lib/video'
 import { Modal, ModalButton } from './Modal'
 
 /** Eingabedaten eines neuen Falls (ohne id/Zeitstempel — die setzt der Aufrufer). */
 export type NewCaseInput = Pick<
   Case,
-  'title' | 'description' | 'notes' | 'image' | 'groupValues' | 'freeTags' | 'fileModified'
+  | 'title'
+  | 'description'
+  | 'notes'
+  | 'image'
+  | 'groupValues'
+  | 'freeTags'
+  | 'fileModified'
+  | 'videoPath'
 >
 
 const inputClass =
@@ -27,7 +35,7 @@ export function CaseFormModal({
   onSubmit,
   onClose,
 }: {
-  mode: 'case' | 'note'
+  mode: 'case' | 'note' | 'video'
   tagGroups: TagGroup[]
   settings: Settings
   /** Vorhandener Fall zum Bearbeiten; gesetzt → Edit-Modus (Felder vorbefüllt). */
@@ -36,6 +44,7 @@ export function CaseFormModal({
   onClose: () => void
 }) {
   const isNote = mode === 'note'
+  const isVideo = mode === 'video'
   const isEditing = initial != null
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -45,6 +54,13 @@ export function CaseFormModal({
   const [fileModified, setFileModified] = useState<number | undefined>(
     initial?.fileModified,
   )
+  // Video-Fall: Pfad (manuell, Browser kann ihn nicht aus der Dateiauswahl lesen)
+  // + Status der automatischen Thumbnail-Extraktion.
+  const [videoPath, setVideoPath] = useState(initial?.videoPath ?? '')
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [videoDragOver, setVideoDragOver] = useState(false)
+  const videoPathRef = useRef<HTMLInputElement>(null)
   const [groupValues, setGroupValues] = useState<Record<string, string[]>>(
     () => ({ ...(initial?.groupValues ?? {}) }),
   )
@@ -74,7 +90,40 @@ export function CaseFormModal({
     setNotes((prev) => (prev.trim() ? prev : splitNotes))
   }
 
-  // Clipboard-Paste: Screenshot direkt einfügen (nur im Fall-Modus mit Bild).
+  // Vorschaubild im Video-Modus manuell setzen (Screenshot per Upload/Paste) —
+  // ohne Titel/Notizen zu verändern (anders als handleFile im Bild-Modus).
+  async function setThumbnailFromImage(file: File | undefined | null) {
+    if (!file || !file.type.startsWith('image/')) return
+    setImage(await fileToDataUrl(file))
+    setExtractError(null)
+  }
+
+  // Videodatei wählen → frühen Frame als Thumbnail extrahieren (Best-Effort).
+  // Scheitert die Extraktion (Format/Codec/Timeout), sauberer Hinweis → manuell.
+  async function handleVideoFile(file: File | undefined | null) {
+    if (!file) return
+    const { title: splitTitle } = splitFilename(file.name, {
+      enabled: settings.filenameSplitEnabled,
+      separator: settings.filenameSeparator,
+    })
+    setFilename(cleanFilename(file.name))
+    setFileModified(file.lastModified || undefined)
+    setTitle((prev) => (prev.trim() ? prev : splitTitle))
+    setExtractError(null)
+    setExtracting(true)
+    try {
+      setImage(await extractVideoThumbnail(file))
+    } catch {
+      setExtractError(
+        'Automatische Vorschau nicht möglich (Format/Codec?). Bitte Vorschaubild manuell wählen.',
+      )
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  // Clipboard-Paste: Screenshot direkt einfügen — als Bild (Fall) bzw. als
+  // Vorschaubild (Video). Im reinen Notiz-Modus deaktiviert.
   useEffect(() => {
     if (isNote) return
     const onPaste = (e: ClipboardEvent) => {
@@ -85,7 +134,9 @@ export function CaseFormModal({
         if (item.type.startsWith('image/')) {
           const blob = item.getAsFile()
           if (blob) {
-            void handleFile(new File([blob], blob.name || 'Screenshot', { type: blob.type }))
+            const file = new File([blob], blob.name || 'Screenshot', { type: blob.type })
+            if (isVideo) void setThumbnailFromImage(file)
+            else void handleFile(file)
             e.preventDefault()
           }
           break
@@ -95,7 +146,7 @@ export function CaseFormModal({
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNote])
+  }, [isNote, isVideo])
 
   function addGroupValue(groupId: string, value: string) {
     if (!value) return
@@ -124,6 +175,12 @@ export function CaseFormModal({
       titleRef.current?.focus()
       return
     }
+    const trimmedPath = normalizeVideoPath(videoPath)
+    if (isVideo && !trimmedPath) {
+      // Der Pfad ist die definierende Eigenschaft eines Video-Falls.
+      videoPathRef.current?.focus()
+      return
+    }
     // Leere Gruppen-Arrays nicht mitschleppen.
     const cleanedGroups: Record<string, string[]> = {}
     for (const [k, v] of Object.entries(groupValues)) {
@@ -137,6 +194,7 @@ export function CaseFormModal({
       groupValues: cleanedGroups,
       freeTags,
       fileModified: isNote ? undefined : fileModified,
+      videoPath: isVideo ? trimmedPath : undefined,
     })
     onClose()
   }
@@ -147,12 +205,16 @@ export function CaseFormModal({
     <Modal
       title={
         isEditing
-          ? isNote
-            ? 'Notiz bearbeiten'
-            : 'Fall bearbeiten'
-          : isNote
-            ? 'Neue Notiz'
-            : 'Neuer Fall'
+          ? isVideo
+            ? 'Video-Fall bearbeiten'
+            : isNote
+              ? 'Notiz bearbeiten'
+              : 'Fall bearbeiten'
+          : isVideo
+            ? 'Neuer Video-Fall'
+            : isNote
+              ? 'Neue Notiz'
+              : 'Neuer Fall'
       }
       onClose={onClose}
       footer={
@@ -165,7 +227,7 @@ export function CaseFormModal({
       }
     >
       <div className="flex flex-col gap-3.5 p-5">
-        {!isNote && (
+        {mode === 'case' && (
           <div>
             <span className={labelClass}>Bild</span>
             <label
@@ -213,6 +275,119 @@ export function CaseFormModal({
               )}
             </label>
           </div>
+        )}
+
+        {isVideo && (
+          <>
+            {/* Videodatei wählen — nur lokal zum Erzeugen des Vorschaubilds. */}
+            <div>
+              <span className={labelClass}>Videodatei → Vorschaubild</span>
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setVideoDragOver(true)
+                }}
+                onDragLeave={() => setVideoDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setVideoDragOver(false)
+                  void handleVideoFile(e.dataTransfer.files[0])
+                }}
+                className={[
+                  'block cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-5 text-center transition-colors',
+                  videoDragOver ? 'border-accent bg-surface-2' : 'border-border',
+                ].join(' ')}
+              >
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => void handleVideoFile(e.target.files?.[0])}
+                />
+                <div className="mb-1 text-2xl">🎬</div>
+                <div className="text-text-muted text-[13px]">
+                  Videodatei hierher ziehen oder klicken — es wird ein Standbild
+                  als Vorschau erzeugt
+                </div>
+                <div className="text-text-muted mt-1 text-[11px]">
+                  Das Video wird <strong>nicht gespeichert</strong>, nur das
+                  Vorschaubild. Den Pfad bitte unten eintragen.
+                </div>
+              </label>
+            </div>
+
+            {/* Pfad — manuell (Browser kann ihn nicht aus der Auswahl lesen). */}
+            <div>
+              <label className={labelClass} htmlFor="cf-videopath">
+                Pfad zur Videodatei
+              </label>
+              <input
+                id="cf-videopath"
+                ref={videoPathRef}
+                className={inputClass}
+                value={videoPath}
+                onChange={(e) => setVideoPath(e.target.value)}
+                onBlur={() => setVideoPath((p) => normalizeVideoPath(p))}
+                placeholder={'z. B. C:\\Users\\…\\Vorlesung.mp4'}
+                spellCheck={false}
+              />
+              <p className="text-text-muted mt-1 text-[11px] leading-relaxed opacity-70">
+                Absoluter Pfad (in Windows per Rechtsklick → „Als Pfad kopieren").
+                Bricht, wenn die Datei verschoben/umbenannt wird oder auf einem
+                anderen Rechner liegt.
+              </p>
+            </div>
+
+            {/* Vorschaubild: automatisch (oben) oder manuell überschreiben. */}
+            <div>
+              <span className={labelClass}>Vorschaubild</span>
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOver(false)
+                  void setThumbnailFromImage(e.dataTransfer.files[0])
+                }}
+                className={[
+                  'block cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-5 text-center transition-colors',
+                  dragOver ? 'border-accent bg-surface-2' : 'border-border',
+                ].join(' ')}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void setThumbnailFromImage(e.target.files?.[0])}
+                />
+                {image ? (
+                  <img
+                    src={image}
+                    alt=""
+                    className="mx-auto max-h-[180px] rounded-[var(--radius-card)] object-contain"
+                  />
+                ) : (
+                  <div className="text-text-muted text-[13px]">
+                    {extracting
+                      ? 'Vorschaubild wird erzeugt …'
+                      : 'Noch kein Vorschaubild'}
+                  </div>
+                )}
+                <div className="text-text-muted mt-2 text-[11px]">
+                  Eigenen Screenshot wählen, hierher ziehen oder{' '}
+                  <strong>Strg+V</strong> einfügen, um die Vorschau zu überschreiben
+                </div>
+              </label>
+              {extractError && (
+                <p className="text-danger mt-1.5 text-[11px] leading-relaxed">
+                  {extractError}
+                </p>
+              )}
+            </div>
+          </>
         )}
 
         <div>

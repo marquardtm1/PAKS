@@ -49,6 +49,14 @@ export interface Case {
    * Optional: reine Notizen und Altbestand ohne Datei haben keins (Fallback: created).
    */
   fileModified?: number
+  /**
+   * Video-Fall: absoluter Pfad zur referenzierten Videodatei. Das Video selbst
+   * wird NICHT gespeichert/eingebettet — nur dieser Verweis plus ein Thumbnail
+   * (liegt im `image`-Feld). Ein Fall mit gesetztem `videoPath` ist ein Video-
+   * Fall. Browser-bedingt manuell eingegeben; der Pfad bricht, wenn die Datei
+   * verschoben/umbenannt wird oder auf einem anderen Rechner liegt.
+   */
+  videoPath?: string
 }
 
 export type Theme = 'dark' | 'light'

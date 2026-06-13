@@ -49,7 +49,7 @@ export function AppShell() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ActiveFilter>({ kind: 'all' })
   const [view, setView] = useState<ViewMode>('grid')
-  const [formMode, setFormMode] = useState<'case' | 'note' | null>(null)
+  const [formMode, setFormMode] = useState<'case' | 'note' | 'video' | null>(null)
   // Vollbild-Ansicht: Position im aktuell gefilterten+sortierten Set (nicht
   // Fall-ID, damit Pfeil-Navigation direkt darauf arbeitet).
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
@@ -353,6 +353,7 @@ export function AppShell() {
             }
             onAddCase={() => setFormMode('case')}
             onAddNote={() => setFormMode('note')}
+            onAddVideo={() => setFormMode('video')}
             onOpenImport={() => setImportOpen(true)}
             onOpenSlideshow={openSlideshow}
             onOpenGallery={() => notifyComingSoon('Stichwort-Galerie')}
@@ -410,7 +411,13 @@ export function AppShell() {
 
       {editCase && (
         <CaseFormModal
-          mode={editCase.image === null ? 'note' : 'case'}
+          mode={
+            editCase.videoPath
+              ? 'video'
+              : editCase.image === null
+                ? 'note'
+                : 'case'
+          }
           tagGroups={snapshot.tagGroups}
           settings={snapshot.settings}
           initial={editCase}
