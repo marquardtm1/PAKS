@@ -147,6 +147,7 @@ Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N 
 - **Offene Kernfrage — wie wird das Schlüsselwort pro Bild bestimmt?**
   - **Option A (automatisch):** erstes Nicht-Stoppwort bzw. erstes Titelwort. Schnell, ohne Pflegeaufwand, aber teils **mehrdeutig oder schlecht** gewählt.
   - **Option B (nutzergesteuert):** pro Fall ein **markiertes Quiz-Schlüsselwort** oder eine feste Konvention (z. B. „erstes Titelwort"). Mehr Pflege, dafür **eindeutiger/kontrollierter**.
+    - **Idee zur Umsetzung (niedrigschwellige Markierung):** Schlüsselwörter direkt vom Nutzer markieren – per **einfacher Geste** (z. B. **Strg+Klick auf ein Wort** in Titel/Notiz), das Wort wird damit als Quiz-Schlüsselwort des Falls gespeichert. **Niedrigschwellige Kuratierung statt automatischer Wortwahl**; löst die Mehrdeutigkeits-/Qualitätsfrage, weil der Nutzer das **eindeutige, sinntragende Wort selbst bestimmt**. Passt zum Prinzip **„Atlas durch gepflegte Metadaten"** – kleine, beiläufige Pflegeschritte erhöhen den Lernwert.
 - **Mehrdeutigkeit vermeiden:** im selben Quiz **kein zwischen zwei Bildern geteiltes Schlüsselwort** (sonst ist die Zuordnung nicht eindeutig lösbar) — beim Zusammenstellen des Sets prüfen/ausschließen.
 - **Feature-Familie:** gehört mit **Diashow (#5)** und **Spaced Repetition (#6)** zusammen — geteilte Logik: **gefiltertes Set** als Quell-Pool, **Metadaten als Frage/Antwort**. Bewusst **gemeinsam konzipieren** (eine Abruf-/Lern-Engine), nicht als isoliertes Einzelfeature bauen.
 
