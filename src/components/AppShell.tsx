@@ -49,7 +49,9 @@ export function AppShell() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<ActiveFilter>({ kind: 'all' })
   const [view, setView] = useState<ViewMode>('grid')
-  const [formMode, setFormMode] = useState<'case' | 'note' | 'video' | null>(null)
+  // Neuanlegen öffnet das Formular auf dem Default-Register (Bild); andere
+  // Register sind im Modal per Tab erreichbar.
+  const [addOpen, setAddOpen] = useState(false)
   // Vollbild-Ansicht: Position im aktuell gefilterten+sortierten Set (nicht
   // Fall-ID, damit Pfeil-Navigation direkt darauf arbeitet).
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
@@ -131,7 +133,7 @@ export function AppShell() {
   // letzte Datenänderung rückgängig. Gemeinsame Guards: nicht bei offenem
   // Overlay und nicht während Texteingaben (Input/Textarea/contenteditable).
   const overlayOpen =
-    viewerIndex !== null || formMode !== null || editCase !== null ||
+    viewerIndex !== null || addOpen || editCase !== null ||
     settingsOpen || importOpen || duplicatesOpen || conflict !== null ||
     slideshowCases !== null
   useEffect(() => {
@@ -351,9 +353,7 @@ export function AppShell() {
                 searchCaseSensitive: !snapshot.settings.searchCaseSensitive,
               })
             }
-            onAddCase={() => setFormMode('case')}
-            onAddNote={() => setFormMode('note')}
-            onAddVideo={() => setFormMode('video')}
+            onAddCase={() => setAddOpen(true)}
             onOpenImport={() => setImportOpen(true)}
             onOpenSlideshow={openSlideshow}
             onOpenGallery={() => notifyComingSoon('Stichwort-Galerie')}
@@ -386,13 +386,13 @@ export function AppShell() {
         />
       </div>
 
-      {formMode && (
+      {addOpen && (
         <CaseFormModal
-          mode={formMode}
+          mode="case"
           tagGroups={snapshot.tagGroups}
           settings={snapshot.settings}
           onSubmit={handleCreate}
-          onClose={() => setFormMode(null)}
+          onClose={() => setAddOpen(false)}
         />
       )}
 

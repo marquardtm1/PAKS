@@ -22,10 +22,23 @@ const inputClass =
 const labelClass =
   'text-text-muted mb-1.5 block text-xs font-semibold uppercase tracking-[0.06em]'
 
+type FormRegister = 'case' | 'note' | 'video'
+
+const REGISTER_TABS: { key: FormRegister; label: string }[] = [
+  { key: 'case', label: '🩻 Bild' },
+  { key: 'video', label: '🎬 Video' },
+  { key: 'note', label: '📝 Notiz' },
+]
+
 /**
- * Anlege-Formular für Fall (mode='case', mit Bild) oder reine Notiz
- * (mode='note', ohne Bild). Tag-Gruppen werden dynamisch aus tagGroups
- * gerendert; pro Gruppe sind mehrere Werte wählbar.
+ * Anlege-/Bearbeiten-Formular mit drei Registern: Bild (mit Bild), Video
+ * (Verweis + Vorschaubild) und Notiz (ohne Bild). Das aktive Register ist
+ * interner Zustand und beim Wechsel verlustfrei: alle gemeinsamen Felder
+ * (Titel, Beschreibung, Notizen, Tags) sowie Bild und Video-Pfad bleiben
+ * erhalten; erst beim Speichern bestimmt das aktive Register die Endform des
+ * Falls. `mode` ist nur das Start-Register (Default beim Neuanlegen: Bild;
+ * beim Bearbeiten: das zum Fall passende Register). Tag-Gruppen werden
+ * dynamisch aus tagGroups gerendert; pro Gruppe sind mehrere Werte wählbar.
  */
 export function CaseFormModal({
   mode,
@@ -35,7 +48,7 @@ export function CaseFormModal({
   onSubmit,
   onClose,
 }: {
-  mode: 'case' | 'note' | 'video'
+  mode: FormRegister
   tagGroups: TagGroup[]
   settings: Settings
   /** Vorhandener Fall zum Bearbeiten; gesetzt → Edit-Modus (Felder vorbefüllt). */
@@ -43,8 +56,10 @@ export function CaseFormModal({
   onSubmit: (data: NewCaseInput) => void
   onClose: () => void
 }) {
-  const isNote = mode === 'note'
-  const isVideo = mode === 'video'
+  // Aktives Register als interner Zustand → Tab-Wechsel ohne Datenverlust.
+  const [register, setRegister] = useState<FormRegister>(mode)
+  const isNote = register === 'note'
+  const isVideo = register === 'video'
   const isEditing = initial != null
   const [title, setTitle] = useState(initial?.title ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
@@ -181,6 +196,13 @@ export function CaseFormModal({
       videoPathRef.current?.focus()
       return
     }
+    // Notiz-Register speichert kein Bild — vor versehentlichem Bildverlust warnen.
+    if (isNote && image) {
+      const ok = window.confirm(
+        'Im Notiz-Register wird kein Bild gespeichert — das eingefügte Bild geht verloren. Trotzdem als reine Notiz speichern?',
+      )
+      if (!ok) return
+    }
     // Leere Gruppen-Arrays nicht mitschleppen.
     const cleanedGroups: Record<string, string[]> = {}
     for (const [k, v] of Object.entries(groupValues)) {
@@ -227,7 +249,27 @@ export function CaseFormModal({
       }
     >
       <div className="flex flex-col gap-3.5 p-5">
-        {mode === 'case' && (
+        {/* Register-Umschalter — Wechsel ist verlustfrei (siehe submit). */}
+        <div className="bg-bg border-border flex gap-1 rounded-[var(--radius-card)] border p-1">
+          {REGISTER_TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setRegister(key)}
+              aria-pressed={register === key}
+              className={[
+                'flex-1 rounded-[calc(var(--radius-card)-3px)] px-3 py-1.5 text-[13px] font-medium transition-colors',
+                register === key
+                  ? 'bg-accent text-white'
+                  : 'text-text-muted hover:text-text',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {register === 'case' && (
           <div>
             <span className={labelClass}>Bild</span>
             <label
