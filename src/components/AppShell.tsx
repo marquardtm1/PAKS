@@ -14,6 +14,7 @@ import { CaseGrid, type ViewMode } from './CaseGrid'
 import { DisclaimerBanner } from './DisclaimerBanner'
 import { CaseFormModal, type NewCaseInput } from './CaseFormModal'
 import { Lightbox } from './Lightbox'
+import { Slideshow } from './Slideshow'
 import { SettingsModal } from './SettingsModal'
 import { BatchImportModal } from './BatchImportModal'
 import { DuplicatesModal } from './DuplicatesModal'
@@ -57,6 +58,8 @@ export function AppShell() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false)
+  // Diashow läuft über das beim Öffnen eingefrorene, bild-only Set (null = zu).
+  const [slideshowCases, setSlideshowCases] = useState<Case[] | null>(null)
   // Mehrfachauswahl im Grid (UI-State, nicht persistiert). anchor = Bezugskachel
   // für Shift-Bereichsauswahl.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -129,7 +132,8 @@ export function AppShell() {
   // Overlay und nicht während Texteingaben (Input/Textarea/contenteditable).
   const overlayOpen =
     viewerIndex !== null || formMode !== null || editCase !== null ||
-    settingsOpen || importOpen || duplicatesOpen || conflict !== null
+    settingsOpen || importOpen || duplicatesOpen || conflict !== null ||
+    slideshowCases !== null
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (overlayOpen) return
@@ -308,6 +312,17 @@ export function AppShell() {
   const notifyComingSoon = (name: string) =>
     setToast({ text: `${name} ist noch nicht gebaut.`, id: Date.now() })
 
+  // Diashow über das aktuell gefilterte Set starten — nur Fälle mit Bild. Das Set
+  // wird beim Öffnen eingefroren, damit es während der Show stabil bleibt.
+  const openSlideshow = () => {
+    const withImage = visibleCases.filter((c) => c.image !== null)
+    if (withImage.length === 0) {
+      setToast({ text: 'Keine Bilder im aktuellen Set für die Diashow.', id: Date.now() })
+      return
+    }
+    setSlideshowCases(withImage)
+  }
+
   return (
     <div className="flex h-full flex-col">
       <Header />
@@ -339,7 +354,7 @@ export function AppShell() {
             onAddCase={() => setFormMode('case')}
             onAddNote={() => setFormMode('note')}
             onOpenImport={() => setImportOpen(true)}
-            onOpenSlideshow={() => notifyComingSoon('Diashow')}
+            onOpenSlideshow={openSlideshow}
             onOpenGallery={() => notifyComingSoon('Stichwort-Galerie')}
             onFindDuplicates={() => setDuplicatesOpen(true)}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -435,6 +450,16 @@ export function AppShell() {
 
       {conflict && (
         <ConflictDialog conflict={conflict} onResolve={resolveConflict} />
+      )}
+
+      {slideshowCases && (
+        <Slideshow
+          cases={slideshowCases}
+          tagGroups={snapshot.tagGroups}
+          settings={snapshot.settings}
+          updateSettings={updateSettings}
+          onClose={() => setSlideshowCases(null)}
+        />
       )}
 
       {toast && (

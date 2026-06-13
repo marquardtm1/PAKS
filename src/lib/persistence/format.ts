@@ -48,6 +48,11 @@ export const DEFAULT_SETTINGS: Settings = {
   sortKey: 'date',
   sortDir: 'desc',
   searchCaseSensitive: false,
+  slideshowIntervalSec: 5,
+  slideshowOrder: 'grid',
+  slideshowMetaHidden: false,
+  slideshowAuto: false,
+  slideshowAutoDrill: true,
 }
 
 /** Leerer, gültiger Snapshot — Startpunkt vor dem ersten Laden/Seed. */

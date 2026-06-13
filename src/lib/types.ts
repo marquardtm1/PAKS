@@ -58,6 +58,9 @@ export type SortKey = 'title' | 'date'
 /** Sortierrichtung. */
 export type SortDir = 'asc' | 'desc'
 
+/** Reihenfolge der Diashow: wie im Grid (aktuelle Sortierung) oder zufällig. */
+export type SlideshowOrder = 'grid' | 'shuffle'
+
 /** App-Einstellungen (klein; landen mit im Snapshot). */
 export interface Settings {
   /** Datenschutz-/USB-Warnhinweis vom Nutzer bestätigt. */
@@ -91,4 +94,21 @@ export interface Settings {
    * (Teilwortsuche bleibt). Default false = Schreibung egal (bisheriges Verhalten).
    */
   searchCaseSensitive: boolean
+
+  // ── Diashow (gemerkte Modus-Wahl + Timer) ──────────────────────────────────
+  /** Auto-Intervall in Sekunden (Bereich 2–30). */
+  slideshowIntervalSec: number
+  /** Reihenfolge: wie im Grid oder zufällig (Shuffle). */
+  slideshowOrder: SlideshowOrder
+  /** Metadaten beim Start verborgen (aktiver Abruf) statt sichtbar. */
+  slideshowMetaHidden: boolean
+  /** Zuletzt gewählter Auto-Modus (true = Auto-Weiterschalten, false = manuell). */
+  slideshowAuto: boolean
+  /**
+   * Verhalten im Auto-Modus bei verborgenen Metadaten:
+   *  - true (Aufdeck-Drill): Timer deckt erst auf, schaltet dann weiter
+   *    (Bild → Intervall → Auflösung → Intervall → nächstes).
+   *  - false (Durchblättern): Timer schaltet nur Bilder weiter, Aufdecken manuell.
+   */
+  slideshowAutoDrill: boolean
 }
