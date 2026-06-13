@@ -43,7 +43,21 @@ export function DuplicatesModal({
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   // Behalten-Auswahl je Gruppe (Schlüssel = Gruppen-Hash → Fall-ID).
   const [keepByHash, setKeepByHash] = useState<Record<string, string>>({})
-  const [mergeEnabled, setMergeEnabled] = useState(true)
+  // Merge-Wahl: globaler Schalter als Default + Übersteuerung je Gruppe. Eine
+  // Gruppe ohne eigenen Eintrag folgt dem globalen Default; der globale Schalter
+  // leert die Übersteuerungen und zieht damit alle Gruppen wieder auf den Default.
+  const [globalMerge, setGlobalMerge] = useState(true)
+  const [mergeByHash, setMergeByHash] = useState<Record<string, boolean>>({})
+  // Zweiter Schritt: In-App-Bestätigung (statt window.confirm), damit die volle
+  // Liste der zu löschenden Fälle scrollbar gezeigt werden kann.
+  const [confirming, setConfirming] = useState(false)
+
+  const mergeFor = (hash: string): boolean => mergeByHash[hash] ?? globalMerge
+
+  function setGlobalMergeAll(v: boolean) {
+    setGlobalMerge(v)
+    setMergeByHash({}) // alle Gruppen folgen wieder dem (neuen) Default
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -78,46 +92,32 @@ export function DuplicatesModal({
   )
 
   const deleteCount = resolved.reduce((n, r) => n + r.others.length, 0)
-  const anyLoss = resolved.some((r) => hasLoss(r.loss))
+  // Gruppen, bei denen überhaupt Metadaten verloren gehen könnten (= wo der
+  // Merge-Schalter relevant ist), und davon die mit aktivem Merge.
+  const lossGroups = resolved.filter((r) => r.others.length > 0 && hasLoss(r.loss))
+  const anyLoss = lossGroups.length > 0
+  const mergedLossCount = lossGroups.filter((r) => mergeFor(r.group.hash)).length
+  // Vollständige Titelliste der zu löschenden Fälle (für die scrollbare Bestätigung).
+  const deleteTitles = resolved
+    .flatMap((r) => r.others)
+    .map((o) => o.title.trim() || '(ohne Titel)')
 
-  function handleDelete() {
-    // Titel der zu löschenden Fälle auflisten, damit im letzten Moment sichtbar
-    // ist, was wegfällt. Bei sehr vielen gekürzt, um den Dialog handhabbar zu halten.
-    const titles = resolved
-      .flatMap((r) => r.others)
-      .map((o) => o.title.trim() || '(ohne Titel)')
-    const shown = titles.slice(0, 20)
-    const titleList =
-      shown.map((t) => `• ${t}`).join('\n') +
-      (titles.length > shown.length
-        ? `\n… und ${titles.length - shown.length} weitere`
-        : '')
-    const mergeNote =
-      mergeEnabled && anyLoss
-        ? '\n\nTags und Notizen der entfernten Duplikate werden vorher auf den ' +
-          'jeweils behaltenen Fall übertragen.'
-        : ''
-    const ok = window.confirm(
-      `${deleteCount} ${deleteCount === 1 ? 'Fall' : 'Fälle'} löschen?\n\n` +
-        `Folgende Fälle werden entfernt:\n${titleList}${mergeNote}`,
-    )
-    if (!ok) return
-
+  function executeDelete() {
     applyMutation(
       (s) => {
         const byId = new Map(s.cases.map((c) => [c.id, c]))
         const toDelete = new Set<string>()
         const replacements = new Map<string, Case>()
-        for (const { keep, others, loss } of resolved) {
+        for (const { group, keep, others, loss } of resolved) {
           const keepCase = byId.get(keep.id)
           if (!keepCase) continue
           const otherCases = others
             .map((o) => byId.get(o.id))
             .filter((c): c is Case => !!c)
           otherCases.forEach((o) => toDelete.add(o.id))
-          // Nur tatsächlich mergen, wenn sonst etwas verloren ginge — sonst
-          // bliebe der Behaltene unverändert (kein unnötiger updated-Bump).
-          if (mergeEnabled && otherCases.length > 0 && hasLoss(loss)) {
+          // Pro Gruppe gemäß ihrem eigenen Schalter mergen; nur wenn sonst etwas
+          // verloren ginge (kein unnötiger updated-Bump am Behaltenen).
+          if (mergeFor(group.hash) && otherCases.length > 0 && hasLoss(loss)) {
             replacements.set(keep.id, mergeInto(keepCase, otherCases))
           }
         }
@@ -137,24 +137,31 @@ export function DuplicatesModal({
 
   return (
     <Modal
-      title="Duplikate finden"
+      title={confirming ? 'Löschen bestätigen' : 'Duplikate finden'}
       onClose={onClose}
       maxWidth={880}
       footer={
-        showActions ? (
+        confirming ? (
+          <div className="flex w-full items-center justify-end gap-2">
+            <ModalButton onClick={() => setConfirming(false)}>Zurück</ModalButton>
+            <ModalButton variant="primary" onClick={executeDelete}>
+              Endgültig löschen ({deleteCount})
+            </ModalButton>
+          </div>
+        ) : showActions ? (
           <div className="flex w-full flex-wrap items-center justify-between gap-3">
             <label className="text-text flex cursor-pointer items-center gap-2 text-[13px]">
               <input
                 type="checkbox"
-                checked={mergeEnabled}
-                onChange={(e) => setMergeEnabled(e.target.checked)}
+                checked={globalMerge}
+                onChange={(e) => setGlobalMergeAll(e.target.checked)}
               />
-              Tags &amp; Notizen der entfernten Duplikate übernehmen
+              Tags &amp; Notizen übernehmen — Standard für alle Gruppen
               {anyLoss && <span className="text-accent"> (empfohlen)</span>}
             </label>
             <div className="flex gap-2">
               <ModalButton onClick={onClose}>Abbrechen</ModalButton>
-              <ModalButton variant="primary" onClick={handleDelete}>
+              <ModalButton variant="primary" onClick={() => setConfirming(true)}>
                 Markierte löschen ({deleteCount})
               </ModalButton>
             </div>
@@ -164,7 +171,14 @@ export function DuplicatesModal({
         )
       }
     >
-      <div className="flex flex-col gap-4 p-5">
+      {confirming ? (
+        <DeleteConfirmView
+          titles={deleteTitles}
+          mergedLossCount={mergedLossCount}
+          lossGroupCount={lossGroups.length}
+        />
+      ) : (
+        <div className="flex flex-col gap-4 p-5">
         <p className="text-text-muted text-xs leading-relaxed">
           Prüft den gesamten Bestand auf <strong>bitweise identische Bilder</strong>{' '}
           (Hash der Bilddaten). Pro Gruppe wählst du den Fall, der{' '}
@@ -206,19 +220,66 @@ export function DuplicatesModal({
                   group={group}
                   keepId={keep.id}
                   loss={loss}
-                  mergeEnabled={mergeEnabled}
+                  merge={mergeFor(group.hash)}
                   hasOthers={others.length > 0}
                   tagGroups={tagGroups}
                   onKeep={(id) =>
                     setKeepByHash((prev) => ({ ...prev, [group.hash]: id }))
+                  }
+                  onToggleMerge={(v) =>
+                    setMergeByHash((prev) => ({ ...prev, [group.hash]: v }))
                   }
                 />
               ))}
             </div>
           </>
         )}
-      </div>
+        </div>
+      )}
     </Modal>
+  )
+}
+
+/**
+ * Bestätigungs-Schritt: zeigt vollständig (scrollbar) die Titel der zu
+ * löschenden Fälle, plus optionalen Merge-Hinweis. Erst der Footer-Button
+ * „Endgültig löschen" führt aus.
+ */
+function DeleteConfirmView({
+  titles,
+  mergedLossCount,
+  lossGroupCount,
+}: {
+  titles: string[]
+  mergedLossCount: number
+  lossGroupCount: number
+}) {
+  return (
+    <div className="flex flex-col gap-3 p-5">
+      <p className="text-text text-[13px]">
+        {titles.length} {titles.length === 1 ? 'Fall wird' : 'Fälle werden'}{' '}
+        gelöscht. Folgende Fälle werden entfernt:
+      </p>
+      <div className="border-border bg-surface-2 max-h-[45vh] overflow-y-auto rounded-[var(--radius-card)] border">
+        <ul className="divide-border divide-y">
+          {titles.map((t, i) => (
+            <li key={i} className="text-text truncate px-3 py-1.5 text-[13px]" title={t}>
+              {t}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {lossGroupCount > 0 && (
+        <p className="text-text-muted text-xs leading-relaxed">
+          {mergedLossCount === 0
+            ? `In keiner von ${lossGroupCount} Gruppe(n) mit zusätzlichen Metadaten ` +
+              `werden diese übernommen — sie gehen verloren.`
+            : `In ${mergedLossCount} von ${lossGroupCount} Gruppe(n) mit zusätzlichen ` +
+              `Metadaten werden Tags & Notizen auf den behaltenen Fall übertragen.`}
+        </p>
+      )}
+      <p className="text-text-muted text-xs">Rückgängig per Strg+Z möglich.</p>
+    </div>
   )
 }
 
@@ -227,19 +288,21 @@ function DuplicateGroupView({
   group,
   keepId,
   loss,
-  mergeEnabled,
+  merge,
   hasOthers,
   tagGroups,
   onKeep,
+  onToggleMerge,
 }: {
   index: number
   group: DuplicateGroup
   keepId: string
   loss: ReturnType<typeof metadataLoss>
-  mergeEnabled: boolean
+  merge: boolean
   hasOthers: boolean
   tagGroups: TagGroup[]
   onKeep: (id: string) => void
+  onToggleMerge: (v: boolean) => void
 }) {
   const lossActive = hasOthers && hasLoss(loss)
 
@@ -264,26 +327,33 @@ function DuplicateGroupView({
         <div
           className={[
             'mt-3 rounded-[var(--radius-card)] border px-3 py-2 text-[12px] leading-relaxed',
-            mergeEnabled
-              ? 'border-accent/50 text-text'
-              : 'border-danger text-danger',
+            merge ? 'border-accent/50' : 'border-danger',
           ].join(' ')}
         >
-          {mergeEnabled ? '↪ Wird übernommen' : '⚠ Geht beim Löschen verloren'}:{' '}
-          {loss.tags.length > 0 && (
-            <>
-              Tags{' '}
-              <span className="font-semibold">{loss.tags.join(', ')}</span>
-              {loss.notes && ' · '}
-            </>
-          )}
-          {loss.notes && <span className="font-semibold">Notiz</span>}
-          {!mergeEnabled && (
-            <span className="text-text-muted">
-              {' '}
-              — nur beim behaltenen Fall fehlend.
-            </span>
-          )}
+          <label className="text-text flex cursor-pointer items-center gap-2 font-medium">
+            <input
+              type="checkbox"
+              checked={merge}
+              onChange={(e) => onToggleMerge(e.target.checked)}
+            />
+            Tags &amp; Notizen dieser Gruppe übernehmen
+          </label>
+          <div className={merge ? 'text-text mt-1' : 'text-danger mt-1'}>
+            {merge ? '↪ Wird übernommen' : '⚠ Geht beim Löschen verloren'}:{' '}
+            {loss.tags.length > 0 && (
+              <>
+                Tags <span className="font-semibold">{loss.tags.join(', ')}</span>
+                {loss.notes && ' · '}
+              </>
+            )}
+            {loss.notes && <span className="font-semibold">Notiz</span>}
+            {!merge && (
+              <span className="text-text-muted">
+                {' '}
+                — nur beim behaltenen Fall fehlend.
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
