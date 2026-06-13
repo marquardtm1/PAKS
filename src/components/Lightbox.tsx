@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
 import { normalizeVideoPath, toFileUrl } from '@/lib/video'
 import { TagChip } from './TagChip'
+
+// Zoom-Grenzen + Schritt pro Rad-Rasterung (nicht endlos rein/raus).
+const MAX_ZOOM = 4
+const ZOOM_STEP = 1.2
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
 /**
  * Vollbild-Ansicht eines Falls (PowerPoint-artig). Öffnet sich beim Klick auf
@@ -44,6 +49,40 @@ export function Lightbox({
   // feuert viele kleine deltaY-Events — wir blättern höchstens einmal je Fenster.
   const wheelLockRef = useRef(0)
 
+  // Zoom/Pan-Zustand des aktuellen Bildes. State rendert das Transform,
+  // transformRef hält denselben Wert für die Event-Handler bereit (kein Stale-
+  // Closure, ohne den Wheel-Listener bei jedem Zoom neu zu registrieren).
+  const [transform, setTransform] = useState({ scale: 1, tx: 0, ty: 0 })
+  const transformRef = useRef(transform)
+  transformRef.current = transform
+  const imgRef = useRef<HTMLImageElement>(null)
+  const imageAreaRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(
+    null,
+  )
+  const [dragging, setDragging] = useState(false)
+
+  // Pan-Versatz so begrenzen, dass das Bild den sichtbaren Bereich nicht ins
+  // Leere verlässt: max. Versatz = halber Überhang über die Bildfläche.
+  const clampOffset = useCallback((tx: number, ty: number, scale: number) => {
+    const img = imgRef.current
+    const area = imageAreaRef.current
+    if (!img || !area) return { tx, ty }
+    const ir = img.getBoundingClientRect()
+    const ar = area.getBoundingClientRect()
+    const renderedScale = transformRef.current.scale || 1
+    const baseW = ir.width / renderedScale
+    const baseH = ir.height / renderedScale
+    const ovX = Math.max(0, (baseW * scale - ar.width) / 2)
+    const ovY = Math.max(0, (baseH * scale - ar.height) / 2)
+    return { tx: clamp(tx, -ovX, ovX), ty: clamp(ty, -ovY, ovY) }
+  }, [])
+
+  // Bei jedem Bildwechsel zurück auf 100 % (Zoom/Pan gehören zum einzelnen Bild).
+  useEffect(() => {
+    setTransform({ scale: 1, tx: 0, ty: 0 })
+  }, [index])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -54,23 +93,42 @@ export function Lightbox({
     return () => document.removeEventListener('keydown', onKey)
   }, [index, hasPrev, hasNext, onClose, onIndexChange])
 
-  // Mausrad blättert wie ←/→ im aktuell gefilterten Set.
+  // Mausrad: blankes Rad blättert wie ←/→, Strg/Cmd+Rad zoomt ins Bild.
   //
-  // Konflikt mit einem späteren Lightbox-Zoom: Das blanke Rad ist die einzige
-  // Geste, die Navigation UND Zoom natürlich beanspruchen. Lösung: Navigation
-  // ignoriert Strg/Cmd+Rad bewusst (`return` unten) und reserviert es so für
-  // den Zoom. Kommt der Zoom, ist die Umstellung ein Einzeiler an genau dieser
-  // Stelle — blankes Rad → Zoom, und die `deltaY`-Navigation wandert hinter ein
-  // `if (e.ctrlKey || e.metaKey)`. Bis dahin bleibt blankes Rad = blättern.
-  //
-  // Listener am Wurzel-Element (nicht document) und non-passive, damit
-  // preventDefault das Hintergrund-Scrollen unterbindet — scrollbare
-  // Innenbereiche (Notizen/Text) sind per [data-scrollable] ausgenommen.
+  // Die beiden Gesten schließen sich per `ctrlKey/metaKey` gegenseitig aus, also
+  // kommen sie sich nie in die Quere. Wichtig für den Zoom: Der Listener ist
+  // non-passive ({ passive: false }) UND ruft im Zoom-Zweig e.preventDefault()
+  // auf — sonst fängt der Browser Strg+Rad ab und zoomt die ganze Seite statt
+  // des Bildes. Reine Notizen (kein <img>) lassen wir bewusst durch (kein
+  // Bild-Zoom → Browser-Default). Scrollbare Innenbereiche (Notizen/Text) sind
+  // beim Blättern per [data-scrollable] ausgenommen.
   useEffect(() => {
     const root = rootRef.current
     if (!root) return
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) return
+      if (e.ctrlKey || e.metaKey) {
+        const img = imgRef.current
+        if (!img) return // reiner Notiz-Fall: kein Bild-Zoom
+        e.preventDefault() // Browser-Seiten-Zoom unterdrücken
+        const cur = transformRef.current
+        const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+        const newScale = clamp(cur.scale * factor, 1, MAX_ZOOM)
+        if (newScale === cur.scale) return
+        // Zoom zum Cursor: der Punkt unter der Maus bleibt stehen.
+        const ir = img.getBoundingClientRect()
+        const vx = e.clientX - (ir.left + ir.width / 2)
+        const vy = e.clientY - (ir.top + ir.height / 2)
+        const r = newScale / cur.scale
+        let tx = cur.tx + (1 - r) * vx
+        let ty = cur.ty + (1 - r) * vy
+        if (newScale === 1) {
+          tx = 0
+          ty = 0
+        }
+        const cl = clampOffset(tx, ty, newScale)
+        setTransform({ scale: newScale, tx: cl.tx, ty: cl.ty })
+        return
+      }
       const target = e.target as HTMLElement
       if (target.closest('[data-scrollable]')) return
       if (Math.abs(e.deltaY) < 1) return
@@ -83,7 +141,7 @@ export function Lightbox({
     }
     root.addEventListener('wheel', onWheel, { passive: false })
     return () => root.removeEventListener('wheel', onWheel)
-  }, [index, hasPrev, hasNext, onIndexChange])
+  }, [index, hasPrev, hasNext, onIndexChange, clampOffset])
 
   // Set kann sich unter der Ansicht ändern (Filter/Löschen) — der Aufrufer
   // klemmt den Index, hier nur defensiv abfangen.
@@ -91,6 +149,37 @@ export function Lightbox({
 
   const chips = caseChips(c, tagGroups)
   const hasNotes = c.notes.trim() !== ''
+  const zoomed = transform.scale > 1
+
+  // Bild im gezoomten Zustand mit der Maus verschieben (Pan). PointerCapture
+  // hält den Drag auch außerhalb des Bildes; bei 100 % ist Pan aus.
+  function onImagePointerDown(e: React.PointerEvent<HTMLImageElement>) {
+    if (transformRef.current.scale <= 1) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      tx: transformRef.current.tx,
+      ty: transformRef.current.ty,
+    }
+    setDragging(true)
+  }
+  function onImagePointerMove(e: React.PointerEvent<HTMLImageElement>) {
+    const d = dragRef.current
+    if (!d) return
+    const cl = clampOffset(
+      d.tx + (e.clientX - d.x),
+      d.ty + (e.clientY - d.y),
+      transformRef.current.scale,
+    )
+    setTransform((t) => ({ ...t, tx: cl.tx, ty: cl.ty }))
+  }
+  function onImagePointerUp() {
+    if (!dragRef.current) return
+    dragRef.current = null
+    setDragging(false)
+  }
 
   return (
     <div ref={rootRef} className="fixed inset-0 z-50 flex flex-col bg-black/95">
@@ -133,7 +222,10 @@ export function Lightbox({
       </div>
 
       {/* Bildbereich mit seitlichen Navigationspfeilen */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center px-16">
+      <div
+        ref={imageAreaRef}
+        className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-16"
+      >
         <NavArrow
           side="left"
           disabled={!hasPrev}
@@ -142,9 +234,23 @@ export function Lightbox({
 
         {c.image ? (
           <img
+            ref={imgRef}
             src={c.image}
             alt={c.title}
-            className="max-h-full max-w-full object-contain"
+            draggable={false}
+            onPointerDown={onImagePointerDown}
+            onPointerMove={onImagePointerMove}
+            onPointerUp={onImagePointerUp}
+            onPointerCancel={onImagePointerUp}
+            onDoubleClick={() => setTransform({ scale: 1, tx: 0, ty: 0 })}
+            style={{
+              transform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.scale})`,
+              cursor: zoomed ? (dragging ? 'grabbing' : 'grab') : 'default',
+              transition: dragging ? 'none' : 'transform 80ms ease-out',
+              willChange: 'transform',
+              touchAction: 'none',
+            }}
+            className="max-h-full max-w-full object-contain select-none"
           />
         ) : (
           <div

@@ -3,6 +3,7 @@ import { useStore } from '@/store/StoreProvider'
 import { uid } from '@/lib/id'
 import { filterCases, type ActiveFilter } from '@/lib/filter'
 import { sortCases } from '@/lib/sort'
+import { activeSet, selectionSubset } from '@/lib/activeSet'
 import { setCaseDragData } from '@/lib/dnd'
 import type { Case, SortDir, SortKey } from '@/lib/types'
 import { Header } from './Header'
@@ -52,9 +53,13 @@ export function AppShell() {
   // Neuanlegen öffnet das Formular auf dem Default-Register (Bild); andere
   // Register sind im Modal per Tab erreichbar.
   const [addOpen, setAddOpen] = useState(false)
-  // Vollbild-Ansicht: Position im aktuell gefilterten+sortierten Set (nicht
-  // Fall-ID, damit Pfeil-Navigation direkt darauf arbeitet).
+  // Vollbild-Ansicht: Position im aktuellen Betrachtungs-Set (nicht Fall-ID,
+  // damit Pfeil-Navigation direkt darauf arbeitet). `viewerMode` legt fest, ob
+  // dieses Set das ganze gefilterte Set ist oder nur die Auswahl (Doppelklick
+  // auf ein ausgewähltes Bild bei Mehrfachauswahl → Navigation nur durch die
+  // Auswahl). Bei Schließen bleibt die Auswahl bewusst erhalten.
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  const [viewerMode, setViewerMode] = useState<'all' | 'selection'>('all')
   // Fall, der gerade bearbeitet wird (Edit-Maske über der Vollbild-Ansicht).
   const [editCase, setEditCase] = useState<Case | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -97,14 +102,25 @@ export function AppShell() {
     )
   }, [snapshot, query, filter, caseSensitive, sortKey, sortDir])
 
+  // Set, durch das die Lightbox navigiert: ganzes gefiltertes Set oder nur die
+  // Auswahl (in Anzeige-Reihenfolge). Abgeleitet → Löschen/Filtern im offenen
+  // Viewer bleibt konsistent (entfernte Fälle fallen heraus).
+  const viewerCases = useMemo(
+    () =>
+      viewerMode === 'selection'
+        ? selectionSubset(visibleCases, selectedIds)
+        : visibleCases,
+    [viewerMode, visibleCases, selectedIds],
+  )
+
   // Vollbild-Index gültig halten, wenn sich das Set ändert (Filter, Suche,
   // Sortierung, Löschen): leeres Set → schließen; Index außerhalb → ans Ende.
   useEffect(() => {
     if (viewerIndex === null) return
-    if (visibleCases.length === 0) setViewerIndex(null)
-    else if (viewerIndex >= visibleCases.length)
-      setViewerIndex(visibleCases.length - 1)
-  }, [viewerIndex, visibleCases])
+    if (viewerCases.length === 0) setViewerIndex(null)
+    else if (viewerIndex >= viewerCases.length)
+      setViewerIndex(viewerCases.length - 1)
+  }, [viewerIndex, viewerCases])
 
   // Auswahl zurücksetzen, wenn sich das sichtbare Set durch Filter/Suche ändert —
   // sonst blieben unsichtbare Fälle ausgewählt und würden von Entf miterfasst.
@@ -241,10 +257,18 @@ export function AppShell() {
     })
   }
 
-  // Doppelklick → Vollbild-Ansicht an der Position des Falls im sortierten Set.
+  // Doppelklick → Vollbild-Ansicht. Regel analog zum Drag-Tagging: wird ein
+  // ausgewähltes Bild bei aktiver Mehrfachauswahl angefasst, navigiert der
+  // Viewer nur durch die Auswahl; sonst durch das ganze gefilterte Set.
   const openViewer = (id: string) => {
-    const i = visibleCases.findIndex((c) => c.id === id)
-    if (i >= 0) setViewerIndex(i)
+    const useSelection = selectedIds.size > 1 && selectedIds.has(id)
+    const set = useSelection
+      ? selectionSubset(visibleCases, selectedIds)
+      : visibleCases
+    const i = set.findIndex((c) => c.id === id)
+    if (i < 0) return
+    setViewerMode(useSelection ? 'selection' : 'all')
+    setViewerIndex(i)
   }
 
   // Einfachklick-Auswahl mit Modifiern (Reihenfolge = sortiertes Anzeige-Set):
@@ -314,12 +338,22 @@ export function AppShell() {
   const notifyComingSoon = (name: string) =>
     setToast({ text: `${name} ist noch nicht gebaut.`, id: Date.now() })
 
-  // Diashow über das aktuell gefilterte Set starten — nur Fälle mit Bild. Das Set
-  // wird beim Öffnen eingefroren, damit es während der Show stabil bleibt.
+  // Diashow über das aktive Set starten (Mehrfachauswahl → nur Auswahl, sonst
+  // ganzes gefiltertes Set; dieselbe Set-Logik wie die Lightbox) — nur Fälle mit
+  // Bild. Das Set wird beim Öffnen eingefroren, damit es während der Show stabil
+  // bleibt.
   const openSlideshow = () => {
-    const withImage = visibleCases.filter((c) => c.image !== null)
+    const fromSelection = selectedIds.size > 1
+    const withImage = activeSet(visibleCases, selectedIds).filter(
+      (c) => c.image !== null,
+    )
     if (withImage.length === 0) {
-      setToast({ text: 'Keine Bilder im aktuellen Set für die Diashow.', id: Date.now() })
+      setToast({
+        text: fromSelection
+          ? 'Keine Bilder in der Auswahl für die Diashow.'
+          : 'Keine Bilder im aktuellen Set für die Diashow.',
+        id: Date.now(),
+      })
       return
     }
     setSlideshowCases(withImage)
@@ -396,9 +430,9 @@ export function AppShell() {
         />
       )}
 
-      {viewerIndex !== null && visibleCases[viewerIndex] && (
+      {viewerIndex !== null && viewerCases[viewerIndex] && (
         <Lightbox
-          cases={visibleCases}
+          cases={viewerCases}
           index={viewerIndex}
           tagGroups={snapshot.tagGroups}
           notesDefaultOpen={snapshot.settings.notesExpandedByDefault}
