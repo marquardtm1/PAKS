@@ -79,6 +79,10 @@ export function SettingsModal({
 
         <hr className="border-border my-2" />
 
+        <AppearanceSettings settings={settings} updateSettings={updateSettings} />
+
+        <hr className="border-border my-2" />
+
         <FilenameImportSettings settings={settings} updateSettings={updateSettings} />
 
         <hr className="border-border my-2" />
@@ -170,6 +174,75 @@ function DataBackupSettings({
         Import ersetzt den aktuellen Stand (Restore aus Backup).
       </p>
     </div>
+  )
+}
+
+/**
+ * Darstellung: Farbschema (Hell/Dunkel). Derselbe Schalter wie der
+ * Schnellumschalter unten in der Sidebar — beide schreiben theme via
+ * updateSettings, hier nur als beschrifteter Zugang in den Einstellungen.
+ */
+function AppearanceSettings({
+  settings,
+  updateSettings,
+}: {
+  settings: Settings
+  updateSettings: (patch: Partial<Settings>) => void
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className={sectionHeadingClass}>Darstellung</h3>
+      <div className="flex items-center gap-3">
+        <span className="text-text text-[13px]">Farbschema</span>
+        <div className="flex">
+          <ThemeSegButton
+            active={settings.theme === 'dark'}
+            onClick={() => updateSettings({ theme: 'dark' })}
+            rounded="left"
+          >
+            Dunkel
+          </ThemeSegButton>
+          <ThemeSegButton
+            active={settings.theme === 'light'}
+            onClick={() => updateSettings({ theme: 'light' })}
+            rounded="right"
+          >
+            Hell
+          </ThemeSegButton>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ThemeSegButton({
+  active,
+  onClick,
+  rounded,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  rounded: 'left' | 'right'
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        'border-border border px-3 py-1 text-[13px] transition-colors',
+        rounded === 'left'
+          ? 'rounded-l-[var(--radius-card)]'
+          : 'rounded-r-[var(--radius-card)] border-l-0',
+        active
+          ? 'bg-accent border-accent text-white'
+          : 'bg-surface-2 text-text-muted hover:text-text',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   )
 }
 

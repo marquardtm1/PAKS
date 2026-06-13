@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
 import { TagChip } from './TagChip'
@@ -38,6 +38,10 @@ export function Lightbox({
   const hasPrev = index > 0
   const hasNext = index < cases.length - 1
   const [notesOpen, setNotesOpen] = useState(notesDefaultOpen)
+  const rootRef = useRef<HTMLDivElement>(null)
+  // Cooldown gegen Über-Springen: ein einzelner Trackpad-/Wheel-„Schwung"
+  // feuert viele kleine deltaY-Events — wir blättern höchstens einmal je Fenster.
+  const wheelLockRef = useRef(0)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -49,6 +53,37 @@ export function Lightbox({
     return () => document.removeEventListener('keydown', onKey)
   }, [index, hasPrev, hasNext, onClose, onIndexChange])
 
+  // Mausrad blättert wie ←/→ im aktuell gefilterten Set.
+  //
+  // Konflikt mit einem späteren Lightbox-Zoom: Das blanke Rad ist die einzige
+  // Geste, die Navigation UND Zoom natürlich beanspruchen. Lösung: Navigation
+  // ignoriert Strg/Cmd+Rad bewusst (`return` unten) und reserviert es so für
+  // den Zoom. Kommt der Zoom, ist die Umstellung ein Einzeiler an genau dieser
+  // Stelle — blankes Rad → Zoom, und die `deltaY`-Navigation wandert hinter ein
+  // `if (e.ctrlKey || e.metaKey)`. Bis dahin bleibt blankes Rad = blättern.
+  //
+  // Listener am Wurzel-Element (nicht document) und non-passive, damit
+  // preventDefault das Hintergrund-Scrollen unterbindet — scrollbare
+  // Innenbereiche (Notizen/Text) sind per [data-scrollable] ausgenommen.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return
+      const target = e.target as HTMLElement
+      if (target.closest('[data-scrollable]')) return
+      if (Math.abs(e.deltaY) < 1) return
+      e.preventDefault()
+      const now = Date.now()
+      if (now < wheelLockRef.current) return
+      wheelLockRef.current = now + 250
+      if (e.deltaY > 0 && hasNext) onIndexChange(index + 1)
+      else if (e.deltaY < 0 && hasPrev) onIndexChange(index - 1)
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [index, hasPrev, hasNext, onIndexChange])
+
   // Set kann sich unter der Ansicht ändern (Filter/Löschen) — der Aufrufer
   // klemmt den Index, hier nur defensiv abfangen.
   if (!c) return null
@@ -57,7 +92,7 @@ export function Lightbox({
   const hasNotes = c.notes.trim() !== ''
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
+    <div ref={rootRef} className="fixed inset-0 z-50 flex flex-col bg-black/95">
       {/* Kopfzeile: zentrierter Titel, Aktionen rechts (linker Spacer balanciert
           die Zentrierung aus, damit der Titel wirklich mittig sitzt). */}
       <div className="flex shrink-0 items-center gap-3 px-5 py-3.5">
@@ -111,7 +146,10 @@ export function Lightbox({
             className="max-h-full max-w-full object-contain"
           />
         ) : (
-          <div className="max-h-full max-w-[640px] overflow-y-auto px-2 text-[16px] leading-relaxed whitespace-pre-wrap text-white">
+          <div
+            data-scrollable
+            className="max-h-full max-w-[640px] overflow-y-auto px-2 text-[16px] leading-relaxed whitespace-pre-wrap text-white"
+          >
             {c.notes.trim() || c.description.trim() || '(kein Text)'}
           </div>
         )}
@@ -148,7 +186,10 @@ export function Lightbox({
                 📝 Notizen
               </button>
               {notesOpen && (
-                <div className="max-h-[30vh] overflow-y-auto pb-3 text-[16px] leading-relaxed whitespace-pre-wrap text-white">
+                <div
+                  data-scrollable
+                  className="max-h-[30vh] overflow-y-auto pb-3 text-[16px] leading-relaxed whitespace-pre-wrap text-white"
+                >
                   {c.notes}
                 </div>
               )}

@@ -34,11 +34,14 @@ export interface Snapshot {
 
 /** Default-Breite der Seitenleiste in px. */
 export const DEFAULT_SIDEBAR_WIDTH = 220
+/** Default-Höhe der unteren Befehlszone (Hinzufügen + Werkzeuge) in px. */
+export const DEFAULT_SIDEBAR_BOTTOM_HEIGHT = 232
 
 export const DEFAULT_SETTINGS: Settings = {
   disclaimerAccepted: false,
   theme: 'dark',
   sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
+  sidebarBottomHeight: DEFAULT_SIDEBAR_BOTTOM_HEIGHT,
   filenameSplitEnabled: false,
   filenameSeparator: '-',
   notesExpandedByDefault: true,

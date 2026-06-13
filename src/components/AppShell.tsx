@@ -63,6 +63,11 @@ export function AppShell() {
     if (persistedWidth != null) setSidebarWidth(persistedWidth)
   }, [persistedWidth])
 
+  // Höhe der unteren Befehlszone in der Sidebar (verstellbare Trennlinie). Das
+  // flüssige Drag passiert in der Sidebar direkt am DOM; hier nur der
+  // persistierte Wert, der als Anfangshöhe einfließt.
+  const sidebarBottomHeight = snapshot?.settings.sidebarBottomHeight ?? 232
+
   // Gefiltert, dann sortiert. Dieselbe Reihenfolge speist Grid, Bereichsauswahl
   // (Shift) und Vollbild-Navigation — eine einzige Quelle der Anzeigereihenfolge.
   const sortKey = snapshot?.settings.sortKey ?? 'date'
@@ -127,7 +132,16 @@ export function AppShell() {
       )
         return
 
-      if (e.key === 'Delete') {
+      if (e.key === 'Escape') {
+        // Rangfolge: Offene Overlays fangen Esc selbst ab (sie schließen sich)
+        // und werden vom overlayOpen-Guard oben ausgeschlossen, bevor wir hier
+        // ankommen. Hier landet Esc also nur ohne Overlay/Texteingabe — dann
+        // hebt es eine bestehende Mehrfachauswahl auf.
+        if (selectedIds.size === 0) return
+        e.preventDefault()
+        setSelectedIds(new Set())
+        setAnchorId(null)
+      } else if (e.key === 'Delete') {
         if (selectedIds.size === 0) return
         e.preventDefault()
         const n = selectedIds.size
@@ -143,6 +157,19 @@ export function AppShell() {
       } else if (
         (e.ctrlKey || e.metaKey) &&
         !e.shiftKey &&
+        e.key.toLowerCase() === 'a'
+      ) {
+        // Strg+A markiert ausschließlich das aktuell sichtbare (gefilterte +
+        // gesuchte) Set — NICHT den ganzen Bestand. Die Guards oben verhindern,
+        // dass wir hier die native Text-Markierung in Such-/Eingabefeldern
+        // kapern. preventDefault unterdrückt die Browser-Volltextmarkierung.
+        if (visibleCases.length === 0) return
+        e.preventDefault()
+        setSelectedIds(new Set(visibleCases.map((c) => c.id)))
+        setAnchorId(null)
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
         e.key.toLowerCase() === 'z'
       ) {
         // Strg+Shift+Z (Redo) bewusst ignoriert — kein Redo vorgesehen.
@@ -153,7 +180,7 @@ export function AppShell() {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [overlayOpen, selectedIds, applyMutation, canUndo, runUndo])
+  }, [overlayOpen, selectedIds, visibleCases, applyMutation, canUndo, runUndo])
 
   if (status === 'loading') {
     return <CenterMessage>Lade Daten …</CenterMessage>
@@ -266,24 +293,14 @@ export function AppShell() {
     updateSettings({ sortKey: key, sortDir: dir })
   }
 
+  // Platzhalter für noch nicht gebaute Werkzeuge (Diashow, Stichwort-Galerie).
+  // Sobald die Funktionen existieren, ersetzen ihre Öffnen-Handler diese Toasts.
+  const notifyComingSoon = (name: string) =>
+    setToast({ text: `${name} ist noch nicht gebaut.`, id: Date.now() })
+
   return (
     <div className="flex h-full flex-col">
-      <Header
-        query={query}
-        onQueryChange={setQuery}
-        caseSensitive={snapshot.settings.searchCaseSensitive}
-        onToggleCaseSensitive={() =>
-          updateSettings({
-            searchCaseSensitive: !snapshot.settings.searchCaseSensitive,
-          })
-        }
-        theme={snapshot.settings.theme}
-        onToggleTheme={toggleTheme}
-        onOpenSettings={() => setSettingsOpen(true)}
-        onOpenImport={() => setImportOpen(true)}
-        onAddCase={() => setFormMode('case')}
-        onAddNote={() => setFormMode('note')}
-      />
+      <Header />
       {!snapshot.settings.disclaimerAccepted && (
         <DisclaimerBanner onAccept={acceptDisclaimer} />
       )}
@@ -295,6 +312,26 @@ export function AppShell() {
             activeFilter={filter}
             onFilterChange={setFilter}
             mutate={applyMutation}
+            query={query}
+            onQueryChange={setQuery}
+            caseSensitive={snapshot.settings.searchCaseSensitive}
+            onToggleCaseSensitive={() =>
+              updateSettings({
+                searchCaseSensitive: !snapshot.settings.searchCaseSensitive,
+              })
+            }
+            onAddCase={() => setFormMode('case')}
+            onAddNote={() => setFormMode('note')}
+            onOpenImport={() => setImportOpen(true)}
+            onOpenSlideshow={() => notifyComingSoon('Diashow')}
+            onOpenGallery={() => notifyComingSoon('Stichwort-Galerie')}
+            onOpenSettings={() => setSettingsOpen(true)}
+            theme={snapshot.settings.theme}
+            onToggleTheme={toggleTheme}
+            bottomHeight={sidebarBottomHeight}
+            onCommitBottomHeight={(h) =>
+              updateSettings({ sidebarBottomHeight: h })
+            }
           />
         </ResizableSidebar>
         <CaseGrid

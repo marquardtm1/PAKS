@@ -67,6 +67,13 @@ export interface Settings {
   /** Breite der Seitenleiste in px (per Drag verstellbar). */
   sidebarWidth: number
   /**
+   * Höhe der festen unteren Befehlszone (Hinzufügen + Werkzeuge) in px, per
+   * Drag-Trennlinie zwischen Kategorien und Befehlszone verstellbar. Die
+   * Einstellungs-Mini-Leiste (Zahnrad + Theme) liegt darunter und ist davon
+   * unberührt.
+   */
+  sidebarBottomHeight: number
+  /**
    * Beim Import lange Dateinamen in Titel + Notizen aufteilen (statt ganzer
    * Name → Titel). Greift einheitlich für Batch-Import und Einzel-Upload/Paste.
    */
