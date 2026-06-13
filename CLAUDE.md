@@ -179,6 +179,20 @@ Tag-Gruppen **untereinander** und Werte **innerhalb ihrer Gruppe** per Drag umso
 - **Visuelles Drop-Feedback:** klare **Einfügemarke**.
 - **Vor dem Bauen klären:** (1) Unterscheidung der zwei Drag-Arten, (2) **Touch-Tauglichkeit**.
 
+### 15. Direkt-Bearbeiten-Button in der Kachel — ❌ OFFEN
+Ein kleiner **Bearbeiten-Button direkt auf der Kachel**, der das Bearbeiten-Formular öffnet — **ohne Umweg über die Lightbox**.
+- **Einblendung:** per **Hover** (erscheint, wenn die Maus über die Kachel/in ihre Gegend fährt), **dezent**, damit das Grid nicht überladen wird.
+- **KRITISCH — vertragen mit bestehenden Kachel-Interaktionen:** Einfachklick = auswählen, Doppelklick = Lightbox. Der Button darf diese **nicht mit auslösen** (Event-Propagation stoppen).
+
+### 16. Mehrfachauswahl von Kategorien/Werten mit UND/ODER-Schalter — ❌ OFFEN
+Aktuell filtert die Auswahl **eines** Werts. Erweiterung: **mehrere Werte/Kategorien gleichzeitig** als Filter wählen, mit **Umschalter UND/ODER**:
+- **UND:** Fall muss **alle** gewählten Kriterien erfüllen.
+- **ODER:** Fall muss **mindestens eines** erfüllen.
+- **Offen zu klären:**
+  - **Geltungsbereich** des Schalters: **global** oder **pro Kategorie** (z. B. innerhalb einer Gruppe ODER, zwischen Gruppen UND — das übliche **Facetten-Filter-Verhalten**).
+  - **Darstellung** der aktiven Mehrfachfilter.
+  - **Zusammenspiel** mit den bestehenden **Sonderfiltern** (Reine Notizen, Ohne Tags etc.).
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
