@@ -163,6 +163,22 @@ Use Case: **schnelles Auffinden eigener Lehr-/Fallvideos über Metadaten**, Absp
 - **Abspielen:** Best-Effort `window.open(file://…)` (Chromium blockt das von http/localhost meist); **„Kopieren"** (Pfad → Explorer/Finder einfügen) ist der verlässliche Weg. UI: Video-Sektion in der Lightbox, Play-Badge auf der Kachel, „Video"-Knopf in der Sidebar.
 - **Einschränkung (dezent im UI vermerkt):** die Referenz **bricht**, wenn die Videodatei **verschoben/umbenannt** wird oder auf einem anderen Rechner liegt.
 
+### 13. Sicherungs-Sichtbarkeit (Speicher-Status + Schnellzugang) — ❌ OFFEN
+Damit Nutzer ihre Daten nicht unwissentlich nur im flüchtigen IndexedDB halten und bei „Browserdaten löschen" verlieren.
+- **(a) Speicher-Status-Hinweis in der Kopfzeile** (Nähe Save-Indikator):
+  - **Keine verbundene Datei (ungesicherter Zustand):** dezent, aber klar anzeigen, dass die Daten **nur im Browser** liegen und bei „Browserdaten löschen" **verloren gehen**, mit Aufforderung/**Direktlink zu Verbinden oder Exportieren**.
+  - **Verbundene Datei:** bestehender **Save-Indikator** bleibt unverändert.
+  - **Ton:** informieren, nicht erschrecken.
+- **(b) Schnellzugang** zu „Datei verbinden" und „Exportieren" **außerhalb** des Einstellungsmenüs (z. B. untere Sidebar-Zone beim Zahnrad oder über den Status-Hinweis). Bestehende Funktionen in den Einstellungen bleiben erhalten.
+- **Wichtig:** Hinweis **nur im ungesicherten Zustand** zeigen — Nutzer mit verbundener Datei **nicht behelligen**.
+
+### 14. Kategorien/Werte per Drag & Drop umsortieren (nur Reihenfolge, kein Umhängen) — ❌ OFFEN
+Tag-Gruppen **untereinander** und Werte **innerhalb ihrer Gruppe** per Drag umsortieren — **nur Reihenfolge**, kein Umhängen zwischen Gruppen.
+- **Persistenz:** neue Reihenfolge nach Reload erhalten, über **Dual-Write** auch in der Datei; als **`applyMutation`/undo-fähig**.
+- **KRITISCH — Kollision mit bestehendem Tagging-Drag vermeiden:** das bestehende Tagging-Drag (Kachel aus dem Grid auf einen Wert) und das Sidebar-interne Umsortieren müssen **sicher unterschieden** werden — eigene **Drag-Quelle / MIME-Typ** fürs Umsortieren, getrennt von der Tag-Aktion.
+- **Visuelles Drop-Feedback:** klare **Einfügemarke**.
+- **Vor dem Bauen klären:** (1) Unterscheidung der zwei Drag-Arten, (2) **Touch-Tauglichkeit**.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
