@@ -14,6 +14,7 @@ import { CaseFormModal, type NewCaseInput } from './CaseFormModal'
 import { Lightbox } from './Lightbox'
 import { SettingsModal } from './SettingsModal'
 import { BatchImportModal } from './BatchImportModal'
+import { DuplicatesModal } from './DuplicatesModal'
 
 /**
  * App-Shell: verbindet Store (Daten) mit der UI-Zustandsschicht (Suche, Filter,
@@ -47,6 +48,7 @@ export function AppShell() {
   const [editCase, setEditCase] = useState<Case | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false)
   // Mehrfachauswahl im Grid (UI-State, nicht persistiert). anchor = Bezugskachel
   // für Shift-Bereichsauswahl.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -119,7 +121,7 @@ export function AppShell() {
   // Overlay und nicht während Texteingaben (Input/Textarea/contenteditable).
   const overlayOpen =
     viewerIndex !== null || formMode !== null || editCase !== null ||
-    settingsOpen || importOpen
+    settingsOpen || importOpen || duplicatesOpen
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (overlayOpen) return
@@ -325,6 +327,7 @@ export function AppShell() {
             onOpenImport={() => setImportOpen(true)}
             onOpenSlideshow={() => notifyComingSoon('Diashow')}
             onOpenGallery={() => notifyComingSoon('Stichwort-Galerie')}
+            onFindDuplicates={() => setDuplicatesOpen(true)}
             onOpenSettings={() => setSettingsOpen(true)}
             theme={snapshot.settings.theme}
             onToggleTheme={toggleTheme}
@@ -404,6 +407,15 @@ export function AppShell() {
           settings={snapshot.settings}
           onImport={handleBatchImport}
           onClose={() => setImportOpen(false)}
+        />
+      )}
+
+      {duplicatesOpen && (
+        <DuplicatesModal
+          cases={snapshot.cases}
+          tagGroups={snapshot.tagGroups}
+          applyMutation={applyMutation}
+          onClose={() => setDuplicatesOpen(false)}
         />
       )}
 

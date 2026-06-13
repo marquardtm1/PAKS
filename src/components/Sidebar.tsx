@@ -51,6 +51,7 @@ export function Sidebar({
   onOpenImport,
   onOpenSlideshow,
   onOpenGallery,
+  onFindDuplicates,
   onOpenSettings,
   theme,
   onToggleTheme,
@@ -71,6 +72,7 @@ export function Sidebar({
   onOpenImport: () => void
   onOpenSlideshow: () => void
   onOpenGallery: () => void
+  onFindDuplicates: () => void
   onOpenSettings: () => void
   theme: Theme
   onToggleTheme: () => void
@@ -315,6 +317,11 @@ export function Sidebar({
             icon={<GalleryIcon />}
             label="Stichwort-Galerie"
             onClick={onOpenGallery}
+          />
+          <SidebarActionRow
+            icon={<DuplicateIcon />}
+            label="Duplikate finden"
+            onClick={onFindDuplicates}
           />
         </div>
       </div>
@@ -821,6 +828,15 @@ function GalleryIcon() {
       <rect x="14" y="3" width="7" height="7" />
       <rect x="3" y="14" width="7" height="7" />
       <rect x="14" y="14" width="7" height="7" />
+    </svg>
+  )
+}
+
+function DuplicateIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2" />
     </svg>
   )
 }
