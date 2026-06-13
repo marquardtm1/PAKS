@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
+import { FileSaveIndicator } from './FileSaveIndicator'
 
 /**
  * Schmale Kopfzeile: links die Wortmarke (Kurzform groß + aufgelöster Untertitel
@@ -35,6 +36,8 @@ export function Header() {
 
       {/* Flexibler Mittelbereich — reserviert für ein späteres Header-Bild. */}
       <div className="min-w-0 flex-1" />
+
+      <FileSaveIndicator />
 
       <button
         type="button"

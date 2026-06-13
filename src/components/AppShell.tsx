@@ -6,6 +6,8 @@ import { sortCases } from '@/lib/sort'
 import { setCaseDragData } from '@/lib/dnd'
 import type { Case, SortDir, SortKey } from '@/lib/types'
 import { Header } from './Header'
+import { FileReconnectBanner } from './FileReconnectBanner'
+import { ConflictDialog } from './ConflictDialog'
 import { Sidebar } from './Sidebar'
 import { ResizableSidebar } from './ResizableSidebar'
 import { CaseGrid, type ViewMode } from './CaseGrid'
@@ -34,6 +36,12 @@ export function AppShell() {
     deleteCase,
     canUndo,
     undo,
+    fileStatus,
+    fileName,
+    fileError,
+    reconnectFile,
+    conflict,
+    resolveConflict,
   } = useStore()
 
   // UI-Zustand lebt hier (shell-lokal), nicht im persistierten Snapshot.
@@ -121,7 +129,7 @@ export function AppShell() {
   // Overlay und nicht während Texteingaben (Input/Textarea/contenteditable).
   const overlayOpen =
     viewerIndex !== null || formMode !== null || editCase !== null ||
-    settingsOpen || importOpen || duplicatesOpen
+    settingsOpen || importOpen || duplicatesOpen || conflict !== null
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (overlayOpen) return
@@ -306,6 +314,12 @@ export function AppShell() {
       {!snapshot.settings.disclaimerAccepted && (
         <DisclaimerBanner onAccept={acceptDisclaimer} />
       )}
+      <FileReconnectBanner
+        status={fileStatus}
+        fileName={fileName}
+        fileError={fileError}
+        onReconnect={() => void reconnectFile()}
+      />
       <div className="flex min-h-0 flex-1">
         <ResizableSidebar width={sidebarWidth} onCommit={commitSidebarWidth}>
           <Sidebar
@@ -417,6 +431,10 @@ export function AppShell() {
           applyMutation={applyMutation}
           onClose={() => setDuplicatesOpen(false)}
         />
+      )}
+
+      {conflict && (
+        <ConflictDialog conflict={conflict} onResolve={resolveConflict} />
       )}
 
       {toast && (

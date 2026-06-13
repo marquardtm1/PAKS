@@ -13,6 +13,7 @@ import {
 import { confirmDeleteGroup, confirmDeleteValue } from '@/lib/tagGroupActions'
 import { downloadSnapshot, readSnapshotFromFile } from '@/lib/persistence/json'
 import { splitFilename } from '@/lib/image'
+import { useStore } from '@/store/StoreProvider'
 import { Modal, ModalButton } from './Modal'
 import { EditableText } from './EditableText'
 
@@ -91,9 +92,126 @@ export function SettingsModal({
 
         <hr className="border-border my-2" />
 
+        <LiveFileSettings />
+
+        <hr className="border-border my-2" />
+
         <DataBackupSettings snapshot={snapshot} applyMutation={applyMutation} />
       </div>
     </Modal>
+  )
+}
+
+/**
+ * Lebende Datendatei (Weg B): die App schreibt jede Änderung fortlaufend in eine
+ * vom Nutzer gewählte Datei (auf Platte oder USB-Stick) — zusätzlich zum lokalen
+ * IndexedDB-Spiegel (Dual-Write). Die Datei ist die portable „source of truth"
+ * und zugleich Backup/Transfer; der Spiegel sichert gegen Datei-Schreibfehler ab.
+ *
+ * Nur in Chromium (Chrome/Edge) verfügbar. Sonst bleibt Weg A (Export/Import)
+ * unten der Weg — diese Sektion zeigt dann nur den Hinweis.
+ */
+function LiveFileSettings() {
+  const {
+    fileStatus,
+    fileName,
+    fileError,
+    connectNewFile,
+    openExistingFile,
+    reconnectFile,
+    disconnectFile,
+  } = useStore()
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className={sectionHeadingClass}>Lebende Datendatei (Weg B)</h3>
+
+      {fileStatus === 'unsupported' ? (
+        <p className="text-text-muted text-xs leading-relaxed">
+          Die lebende Datei wird nur in Chrome oder Edge unterstützt. In diesem
+          Browser sicherst du deine Daten über „Daten &amp; Backup" (Export/Import)
+          weiter unten.
+        </p>
+      ) : (
+        <>
+          <p className="text-text-muted text-xs leading-relaxed">
+            Verbinde eine Datei, in die PAKS jede Änderung fortlaufend schreibt —
+            ideal auf einem USB-Stick für den Gerätewechsel ohne Cloud. Der lokale
+            Speicher bleibt als Sicherheits-Spiegel erhalten. Nach jedem Neustart
+            muss das Schreibrecht einmal per Klick neu erteilt werden. Lege nur
+            anonymisierte Bilder ab (keine Patientendaten).
+          </p>
+
+          {(fileStatus === 'connected' ||
+            fileStatus === 'needs-reconnect' ||
+            fileStatus === 'error') && (
+            <div className="border-border bg-surface-2 flex items-center gap-2 rounded-[var(--radius-card)] border px-3 py-2 text-[13px]">
+              <StatusDot status={fileStatus} />
+              <span className="text-text min-w-0 flex-1 truncate">
+                {fileName ?? 'Datendatei'}
+              </span>
+              <span className="text-text-muted shrink-0 text-[12px]">
+                {fileStatus === 'connected'
+                  ? 'verbunden'
+                  : fileStatus === 'needs-reconnect'
+                    ? 'getrennt — neu verbinden'
+                    : 'Schreibfehler'}
+              </span>
+            </div>
+          )}
+
+          {fileStatus === 'error' && fileError && (
+            <p className="text-danger text-[12px] leading-relaxed">{fileError}</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {fileStatus === 'none' && (
+              <>
+                <ModalButton variant="primary" onClick={() => void connectNewFile()}>
+                  Neue Datendatei anlegen …
+                </ModalButton>
+                <ModalButton onClick={() => void openExistingFile()}>
+                  Bestehende Datei öffnen …
+                </ModalButton>
+              </>
+            )}
+            {(fileStatus === 'needs-reconnect' || fileStatus === 'error') && (
+              <ModalButton variant="primary" onClick={() => void reconnectFile()}>
+                Erneut verbinden
+              </ModalButton>
+            )}
+            {fileStatus !== 'none' && (
+              <ModalButton onClick={() => void disconnectFile()}>
+                Trennen
+              </ModalButton>
+            )}
+          </div>
+
+          <p className="text-text-muted text-[11px] leading-relaxed opacity-80">
+            „Neue Datei anlegen" schreibt deinen aktuellen Bestand hinein.
+            „Bestehende Datei öffnen" lädt deren Inhalt (ersetzt nach Rückfrage den
+            aktuellen Stand). Behalte zusätzlich ein Backup über Weg A.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** Farbpunkt zum Datei-Status (grün verbunden, gelb getrennt, rot Fehler). */
+function StatusDot({ status }: { status: 'connected' | 'needs-reconnect' | 'error' }) {
+  const color =
+    status === 'connected'
+      ? '#3fb950'
+      : status === 'needs-reconnect'
+        ? '#d29922'
+        : '#f85149'
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-2 w-2 shrink-0 rounded-full"
+      style={{ background: color }}
+    />
   )
 }
 
