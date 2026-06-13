@@ -151,6 +151,17 @@ Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N 
 - **Mehrdeutigkeit vermeiden:** im selben Quiz **kein zwischen zwei Bildern geteiltes Schlüsselwort** (sonst ist die Zuordnung nicht eindeutig lösbar) — beim Zusammenstellen des Sets prüfen/ausschließen.
 - **Feature-Familie:** gehört mit **Diashow (#5)** und **Spaced Repetition (#6)** zusammen — geteilte Logik: **gefiltertes Set** als Quell-Pool, **Metadaten als Frage/Antwort**. Bewusst **gemeinsam konzipieren** (eine Abruf-/Lern-Engine), nicht als isoliertes Einzelfeature bauen.
 
+> **Hinweis zu Option B (Strg+Klick-Markierung):** Die niedrigschwellige Markierung von Quiz-Schlüsselwörtern per **Strg+Klick auf ein Wort** in Titel/Notiz ist oben unter Option B bereits beschrieben — **niedrigschwellige Kuratierung statt automatischer Wortwahl**.
+
+### 12. Video-Referenzen (Referenz, nicht Einbettung) — ❌ OFFEN
+Use Case: **schnelles Auffinden eigener Lehr-/Fallvideos über Metadaten**, Abspielen **extern**. Video wird **NICHT in PAKS eingebettet oder abgespielt**, sondern nur **referenziert**.
+- **Gespeichert wird:** ein **Vorschaubild** (Thumbnail/Standbild), **Titel**, **Tags**, **Notizen** und ein **Verweis auf die Videodatei** (Pfad/Speicherort).
+- **PAKS = durchsuchbarer Index** über diese Metadaten; **Abspielen über externen Player** („Datei öffnen").
+- **Vorteil:** hält PAKS **leicht** (nur Thumbnail + Pfad, **kein GB-Video** in der Datendatei / im JSON-Export), Video bleibt über Metadaten **auffindbar**.
+- **Passt zu Weg B** (Datei-/Ordnerzugriff) — Video im selben Ordner referenzierbar.
+- **Einschränkung:** die Referenz **bricht**, wenn die Videodatei **verschoben/umbenannt** wird.
+- **Offen:** Thumbnail **manuell setzen** oder **automatisch aus dem Video extrahieren**.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).

@@ -491,9 +491,12 @@ function GroupSection({
       </div>
 
       {!collapsed && (
-        <>
+        // Eingerückter Werte-Block mit dünner Führungslinie links: macht die
+        // Zugehörigkeit „Wert gehört zur Gruppe darüber" optisch sichtbar. Die
+        // Linie liegt etwa unter dem Farbpunkt der Gruppen-Kopfzeile.
+        <div className="border-border ml-[20px] border-l pl-1.5">
           {values.length === 0 && (
-            <div className="text-text-muted px-4 py-1 text-xs italic opacity-60">
+            <div className="text-text-muted px-3 py-1 text-xs italic opacity-60">
               noch keine
             </div>
           )}
@@ -530,7 +533,7 @@ function GroupSection({
             placeholder="Wert hinzufügen"
             inputClassName="bg-bg border-accent text-text w-2/3 rounded-[3px] border px-1.5 py-0.5 text-[13px] outline-none"
           />
-        </>
+        </div>
       )}
     </div>
   )
