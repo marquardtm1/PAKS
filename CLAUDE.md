@@ -141,6 +141,15 @@ Sonderfilter in der Sidebar (analog zu „Reine Notizen" / „Mit Notizen"), der
 - **Zweck:** nach einem Massen-Import die noch **ungetaggten** Fälle als Arbeitsliste finden und nachträglich taggen.
 - Umsetzung passt ins bestehende Muster: neuer `ActiveFilter`-Typ (z. B. `untagged`) in `filter.ts` + Zähler in `viewCounts` + Sidebar-Eintrag unter „Ansicht".
 
+### 11. Zuordnungs-Quiz (Lern-Modus) — ❌ OFFEN
+Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N zugehörige Begriffe** werden gezeigt, der Nutzer **ordnet jedem Bild den passenden Begriff zu**, die Auswertung zeigt die Treffer.
+- **Begriff = je ein sinntragendes Schlüsselwort pro Bild**, abgeleitet aus den Metadaten (Titel/Notizen).
+- **Offene Kernfrage — wie wird das Schlüsselwort pro Bild bestimmt?**
+  - **Option A (automatisch):** erstes Nicht-Stoppwort bzw. erstes Titelwort. Schnell, ohne Pflegeaufwand, aber teils **mehrdeutig oder schlecht** gewählt.
+  - **Option B (nutzergesteuert):** pro Fall ein **markiertes Quiz-Schlüsselwort** oder eine feste Konvention (z. B. „erstes Titelwort"). Mehr Pflege, dafür **eindeutiger/kontrollierter**.
+- **Mehrdeutigkeit vermeiden:** im selben Quiz **kein zwischen zwei Bildern geteiltes Schlüsselwort** (sonst ist die Zuordnung nicht eindeutig lösbar) — beim Zusammenstellen des Sets prüfen/ausschließen.
+- **Feature-Familie:** gehört mit **Diashow (#5)** und **Spaced Repetition (#6)** zusammen — geteilte Logik: **gefiltertes Set** als Quell-Pool, **Metadaten als Frage/Antwort**. Bewusst **gemeinsam konzipieren** (eine Abruf-/Lern-Engine), nicht als isoliertes Einzelfeature bauen.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
