@@ -136,10 +136,10 @@ Doppelt vorhandene Bilder im Bestand finden.
 - **Stufe 2 (später, optional):** ähnliche/fast gleiche Bilder über **perceptual hashing** (erkennt andere Auflösung/Ausschnitt/Kompression). Aufwändiger, mit Graubereichen (Schwellwert nötig, mögliche Fehltreffer).
 - **Offene Entscheidung:** Prüfung **beim Import** (Warnung vor dem Hinzufügen) und/oder **nachträglich** als „Duplikate finden"-Funktion über den ganzen Bestand. Beides denkbar — beim Import verhindert Dubletten früh, die Bestands-Funktion räumt Altbestand auf.
 
-### 10. Filter „ohne Tags" — ❌ OFFEN
+### 10. Filter „ohne Tags" — ✅ ERLEDIGT
 Sonderfilter in der Sidebar (analog zu „Reine Notizen" / „Mit Notizen"), der nur Fälle zeigt, die **keinerlei Tag-Zuordnung** haben: keine Werte in irgendeiner Gruppe **und** keine freien Tags.
 - **Zweck:** nach einem Massen-Import die noch **ungetaggten** Fälle als Arbeitsliste finden und nachträglich taggen.
-- Umsetzung passt ins bestehende Muster: neuer `ActiveFilter`-Typ (z. B. `untagged`) in `filter.ts` + Zähler in `viewCounts` + Sidebar-Eintrag unter „Ansicht".
+- **Umsetzung:** `ActiveFilter`-Typ `untagged` + `isUntagged()`-Helper in `filter.ts`, Zähler `untagged` in `viewCounts`, „Ohne Tags"-Eintrag mit Trefferzähler in der Sidebar unter „Ansicht". Taggt man einen Fall der Liste, fällt er aus dem gefilterten Set (Arbeitsliste schrumpft beim Durchtaggen).
 
 ### 11. Zuordnungs-Quiz (Lern-Modus) — ❌ OFFEN
 Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N zugehörige Begriffe** werden gezeigt, der Nutzer **ordnet jedem Bild den passenden Begriff zu**, die Auswertung zeigt die Treffer.

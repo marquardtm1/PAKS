@@ -250,6 +250,12 @@ export function Sidebar({
             active={activeFilter.kind === 'notes'}
             onClick={() => onFilterChange({ kind: 'notes' })}
           />
+          <FilterRow
+            label="Ohne Tags"
+            count={counts.untagged}
+            active={activeFilter.kind === 'untagged'}
+            onClick={() => onFilterChange({ kind: 'untagged' })}
+          />
         </div>
 
         {ordered.map((group) => (

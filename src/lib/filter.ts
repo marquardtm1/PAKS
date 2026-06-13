@@ -9,7 +9,20 @@ export type ActiveFilter =
   | { kind: 'all' }
   | { kind: 'noteonly' }
   | { kind: 'notes' }
+  | { kind: 'untagged' }
   | { kind: 'group'; groupId: string; value: string }
+
+/**
+ * Ein Fall ist „ohne Tags", wenn er KEINERLEI Zuordnung trägt: keine Werte in
+ * irgendeiner Tag-Gruppe und keine freien Tags. Arbeitsliste nach dem Massen-
+ * import, um noch ungetaggte Fälle nachzutaggen.
+ */
+function isUntagged(c: Case): boolean {
+  return (
+    c.freeTags.length === 0 &&
+    Object.values(c.groupValues).every((values) => values.length === 0)
+  )
+}
 
 export function filterEquals(a: ActiveFilter, b: ActiveFilter): boolean {
   if (a.kind !== b.kind) return false
@@ -48,6 +61,8 @@ export function filterCases(
         return c.image === null
       case 'notes':
         return c.notes.trim() !== ''
+      case 'untagged':
+        return isUntagged(c)
       case 'group':
         return (c.groupValues[filter.groupId] ?? []).includes(filter.value)
     }
@@ -59,16 +74,19 @@ export interface ViewCounts {
   all: number
   noteOnly: number
   withNotes: number
+  untagged: number
 }
 
 export function viewCounts(cases: Case[]): ViewCounts {
   let noteOnly = 0
   let withNotes = 0
+  let untagged = 0
   for (const c of cases) {
     if (c.image === null) noteOnly++
     if (c.notes.trim() !== '') withNotes++
+    if (isUntagged(c)) untagged++
   }
-  return { all: cases.length, noteOnly, withNotes }
+  return { all: cases.length, noteOnly, withNotes, untagged }
 }
 
 /** Pro Tag-Gruppe: wie oft jeder Wert vorkommt (für die Sidebar-Counts). */
