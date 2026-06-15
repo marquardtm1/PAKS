@@ -551,7 +551,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const addCase = useCallback(
     (c: Case) => {
       applyMutation((current) => ({ ...current, cases: [c, ...current.cases] }), {
-        label: c.image === null ? 'Notiz angelegt' : 'Fall angelegt',
+        label:
+          c.videoData || c.videoPath
+            ? 'Video angelegt'
+            : c.image === null
+              ? 'Notiz angelegt'
+              : 'Fall angelegt',
       })
     },
     [applyMutation],

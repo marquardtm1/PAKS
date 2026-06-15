@@ -1,5 +1,6 @@
 import type { Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
+import { isVideoCase } from '@/lib/video'
 import { TagChip } from './TagChip'
 
 /**
@@ -31,7 +32,8 @@ export function CaseCard({
 }) {
   const chips = caseChips(c, tagGroups)
   const hasNote = c.notes.trim() !== ''
-  const isVideo = !!c.videoPath
+  const isVideo = isVideoCase(c)
+  const hasAnnotations = (c.annotations?.length ?? 0) > 0
 
   const commonProps = {
     type: 'button' as const,
@@ -85,9 +87,26 @@ export function CaseCard({
           </div>
         )}
         {isVideo && <PlayBadge />}
+        {hasAnnotations && <AnnotationBadge />}
       </div>
       <CardBody title={c.title} chips={chips} hasNote={hasNote} />
     </button>
+  )
+}
+
+/** Dezentes Markierungs-Symbol (oben rechts) — signalisiert „hat Annotationen",
+ *  ohne die Annotationen selbst aufs kleine Thumbnail zu zeichnen. */
+function AnnotationBadge() {
+  return (
+    <span
+      className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 ring-1 ring-white/70"
+      title="Hat Markierungen"
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    </span>
   )
 }
 

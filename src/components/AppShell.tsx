@@ -439,6 +439,10 @@ export function AppShell() {
           onIndexChange={setViewerIndex}
           onEdit={setEditCase}
           onDelete={deleteCase}
+          onAnnotationsChange={(id, annotations) =>
+            updateCase(id, { annotations })
+          }
+          onUndo={runUndo}
           onClose={() => setViewerIndex(null)}
         />
       )}
@@ -446,7 +450,7 @@ export function AppShell() {
       {editCase && (
         <CaseFormModal
           mode={
-            editCase.videoPath
+            editCase.videoPath || editCase.videoData
               ? 'video'
               : editCase.image === null
                 ? 'note'

@@ -228,8 +228,9 @@ export function Sidebar({
           Einziger Teil, der beliebig lang werden darf und dann scrollt; die
           festen Befehlszonen oben/unten bleiben dabei stehen. */}
       <div className="min-h-0 flex-1 overflow-y-auto py-3">
+        {/* Block „Typ": Falltyp (schließt sich vorerst mit dem Filter-Block aus). */}
         <div className="mb-2">
-          <ZoneLabel>Ansicht</ZoneLabel>
+          <ZoneLabel>Typ</ZoneLabel>
           <FilterRow
             label="Alle Fälle"
             count={counts.all}
@@ -237,11 +238,28 @@ export function Sidebar({
             onClick={() => onFilterChange({ kind: 'all' })}
           />
           <FilterRow
-            label="Reine Notizen"
+            label="Bilder"
+            count={counts.images}
+            active={activeFilter.kind === 'images'}
+            onClick={() => onFilterChange({ kind: 'images' })}
+          />
+          <FilterRow
+            label="Videos"
+            count={counts.videos}
+            active={activeFilter.kind === 'videos'}
+            onClick={() => onFilterChange({ kind: 'videos' })}
+          />
+          <FilterRow
+            label="Notizen"
             count={counts.noteOnly}
             active={activeFilter.kind === 'noteonly'}
             onClick={() => onFilterChange({ kind: 'noteonly' })}
           />
+        </div>
+
+        {/* Block „Filter": Eigenschaften (typ-unabhängig), per Trennlinie abgesetzt. */}
+        <div className="border-border mb-2 border-t pt-2">
+          <ZoneLabel>Filter</ZoneLabel>
           <FilterRow
             label="Mit Notizen"
             count={counts.withNotes}

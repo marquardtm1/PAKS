@@ -153,15 +153,16 @@ Aktiver-Abruf-Spiel als zweite Lern-Variante neben Diashow/SM-2: **N Bilder + N 
 
 > **Hinweis zu Option B (Strg+Klick-Markierung):** Die niedrigschwellige Markierung von Quiz-Schlüsselwörtern per **Strg+Klick auf ein Wort** in Titel/Notiz ist oben unter Option B bereits beschrieben — **niedrigschwellige Kuratierung statt automatischer Wortwahl**.
 
-### 12. Video-Referenzen (Referenz, nicht Einbettung) — ✅ ERLEDIGT
-Use Case: **schnelles Auffinden eigener Lehr-/Fallvideos über Metadaten**, Abspielen **extern**. Video wird **NICHT in PAKS eingebettet oder abgespielt**, sondern nur **referenziert**.
-- **Gespeichert wird:** ein **Vorschaubild** (Thumbnail/Standbild, im `image`-Feld), **Titel**, **Tags**, **Notizen** und ein **Verweis auf die Videodatei** (`videoPath`). Ein Fall mit `videoPath` ist ein Video-Fall.
-- **PAKS = durchsuchbarer Index** über diese Metadaten; **Abspielen über externen Player** („Datei öffnen").
-- **Vorteil:** hält PAKS **leicht** (nur Thumbnail + Pfad, **kein GB-Video** in der Datendatei / im JSON-Export), Video bleibt über Metadaten **auffindbar**.
-- **Thumbnail:** automatisch via verstecktem `<video>` + Canvas (`src/lib/video.ts: extractVideoThumbnail`, Best-Effort); bei nicht dekodierbaren Formaten sauberer Fallback auf **manuell wählen** (Upload/Drag/Strg+V). Jederzeit manuell überschreibbar.
-- **Pfad:** browser-bedingt **manuell eingegeben** (Dateiauswahl gibt keinen absoluten OS-Pfad preis); die gewählte Videodatei dient nur der Thumbnail-Extraktion.
-- **Abspielen:** Best-Effort `window.open(file://…)` (Chromium blockt das von http/localhost meist); **„Kopieren"** (Pfad → Explorer/Finder einfügen) ist der verlässliche Weg. UI: Video-Sektion in der Lightbox, Play-Badge auf der Kachel, „Video"-Knopf in der Sidebar.
-- **Einschränkung (dezent im UI vermerkt):** die Referenz **bricht**, wenn die Videodatei **verschoben/umbenannt** wird oder auf einem anderen Rechner liegt.
+### 12. Video-Fälle: Einbetten (Standard) + Pfad-Referenz (für große Dateien) — ✅ ERLEDIGT
+Use Case: **eigene Lehr-/Fallvideos über Metadaten auffinden und lernen**. Zwei sich ausschließende Wege, im Video-Register umschaltbar; das Datenmodell unterscheidet sie sauber (`isVideoCase` / `isEmbeddedVideo` / `isReferencedVideo` in `src/lib/video.ts`):
+- **Einbetten (Standard, `videoData`):** Videodatei wird wie Bilder **in PAKS gespeichert** (base64-Data-URL in der Datendatei/IndexedDB) und im Detail/in der Lightbox über einen **integrierten HTML5-`<video>`-Player** (native Controls) **direkt abgespielt**. Der Player bekommt bewusst **keine** Bild-Zoom/Pan-Handler — die Pointer-/Wheel-Gesten gehören den Controls.
+- **Per Pfad referenzieren (`videoPath`, für große Videos):** nur **Verweis + Thumbnail** in PAKS, **kein GB-Video** in Datei/Export; Abspielen **extern**. Best-Effort `window.open(file://…)` (Chromium blockt meist); **„Kopieren"** (Pfad → Explorer/Finder) ist der verlässliche Weg. **Einschränkung:** Referenz **bricht** bei Verschieben/Umbenennen oder anderem Rechner.
+- **Eindeutiger Zustand:** ein Video-Fall ist **entweder** eingebettet **oder** referenziert, nie beides — beim Speichern wird nur das Feld des aktiven Modus gesetzt, das andere auf `undefined`.
+- **Größenwarnung:** vor dem Einbetten einer Datei **> 50 MB** deutlicher Hinweis (vergrößert Datendatei, verlangsamt Laden/Export; base64 ~+33 %), Empfehlung Pfad-Weg — **Fortfahren möglich**.
+- **Thumbnail:** automatisch via verstecktem `<video>` + Canvas (`extractVideoThumbnail`, Helligkeits-Check, Best-Effort); Fallback **manuell wählen** (Upload/Drag/Strg+V), jederzeit überschreibbar. Dient als Kachelvorschau + Player-Poster.
+- **Pfad:** browser-bedingt **manuell eingegeben** (Dateiauswahl gibt keinen OS-Pfad preis).
+- **UI:** Play-Badge auf der Kachel, „Video"-Knopf in der Sidebar; eingebettet → Player in der Lightbox, referenziert → Pfad-Zugang (Abspielen/Kopieren).
+- **Bestandskompatibilität:** additive optionale Felder, keine Schema-Migration; bestehende Pfad-Video-Fälle laufen unverändert.
 
 ### 13. Sicherungs-Sichtbarkeit (Speicher-Status + Schnellzugang) — ❌ OFFEN
 Damit Nutzer ihre Daten nicht unwissentlich nur im flüchtigen IndexedDB halten und bei „Browserdaten löschen" verlieren.
@@ -184,14 +185,24 @@ Ein kleiner **Bearbeiten-Button direkt auf der Kachel**, der das Bearbeiten-Form
 - **Einblendung:** per **Hover** (erscheint, wenn die Maus über die Kachel/in ihre Gegend fährt), **dezent**, damit das Grid nicht überladen wird.
 - **KRITISCH — vertragen mit bestehenden Kachel-Interaktionen:** Einfachklick = auswählen, Doppelklick = Lightbox. Der Button darf diese **nicht mit auslösen** (Event-Propagation stoppen).
 
-### 16. Mehrfachauswahl von Kategorien/Werten mit UND/ODER-Schalter — ❌ OFFEN
-Aktuell filtert die Auswahl **eines** Werts. Erweiterung: **mehrere Werte/Kategorien gleichzeitig** als Filter wählen, mit **Umschalter UND/ODER**:
-- **UND:** Fall muss **alle** gewählten Kriterien erfüllen.
-- **ODER:** Fall muss **mindestens eines** erfüllen.
-- **Offen zu klären:**
-  - **Geltungsbereich** des Schalters: **global** oder **pro Kategorie** (z. B. innerhalb einer Gruppe ODER, zwischen Gruppen UND — das übliche **Facetten-Filter-Verhalten**).
-  - **Darstellung** der aktiven Mehrfachfilter.
-  - **Zusammenspiel** mit den bestehenden **Sonderfiltern** (Reine Notizen, Ohne Tags etc.).
+### 16. Kombiniertes Filter-System (mehrere Kriterien verknüpfen) — ❌ OFFEN
+**Aktueller Stand:** Immer nur **ein** Filter aktiv. Die Sidebar trennt seit Kurzem sauber **Typ** (Alle/Bilder/Videos/Notizen) von **Eigenschaft** (Mit Notizen, Ohne Tags) und Tag-Werten — aber alle drei Familien schließen sich noch **gegenseitig aus** (ein `ActiveFilter` in `filter.ts`).
+
+**Ziel:** mehrere Kriterien **gleichzeitig** verknüpfen. Das betrifft **drei zusammengehörige Dinge, die als EIN System** gelöst werden — bewusst **nicht einzeln**, sonst entstehen mehrere nebeneinanderstehende Kombinier-Logiken:
+1. **Typ-Filter × Eigenschafts-Filter kombinieren** — z. B. „Videos" UND „Ohne Tags" als Arbeitsliste.
+2. **Mehrere Tag-Werte mit UND/ODER-Schalter** — aktuell filtert die Auswahl nur **eines** Werts. UND: Fall erfüllt **alle**; ODER: **mindestens eines**.
+3. **Facetten-Modell über Kategorien** — innerhalb einer Kategorie **ODER**, zwischen Kategorien **UND** (das übliche intuitive Verhalten, z. B. „**(CT oder MRT) UND Schädel**").
+
+- **Vor dem Bauen:** ein **gemeinsames Konzept für die Kriterien-Verknüpfung** entwerfen (ein Filter-Zustand, der Typ + Eigenschaften + Tag-Facetten zusammen trägt), statt mehrere getrennte Kombinier-Logiken. Auch klären: **Darstellung** der aktiven Mehrfachfilter und **Zusammenspiel** mit den Sonderfiltern.
+
+### 17. Bild-Annotationen (ein-/ausblendbar) — ✅ ERLEDIGT
+Einfache, ein-/ausblendbare Markierungen **über dem Bild**: **Pfeile** und **Kreise/Rechtecke** in drei festen Farben (Rot/Gelb/Grün, je nach Bildkontrast).
+- **Datenmodell (`Annotation` in `types.ts`):** Overlay-Vektordaten am `Case` (`annotations?`), **NICHT eingebrannt** — Originalbild unberührt, jederzeit zeig-/verbergbar und editierbar. Formen mit **Koordinaten 0..1 relativ zum Bild** (arrow = zwei Punkte, circle/rect = Bounding-Box) + Farbe. **Additiv & optional**, keine Schema-Migration; fließt automatisch durch **Dual-Write + Export** (Teil des Snapshots).
+- **Editor in der Lightbox:** Zeichnen-Modus (Stift-Toggle) mit schwebender Werkzeugleiste (Werkzeug + Farbe), Form per Ziehen anlegen; bestehende Form anklicken = auswählen, dann **Löschen** (Entf/Papierkorb) oder **Umfärben**. Jede Aktion ist eine `updateCase`-Mutation → **undo-fähig**.
+- **Anzeige-Schalter** (Auge-Toggle): globaler An/Aus pro Bild; Default **sichtbar**. Passt zum **aktiven-Abruf-Prinzip** (Bild nackt → überlegen → einblenden).
+- **Zoom-Zusammenspiel:** Overlay (`AnnotationLayer.tsx`, SVG) liegt **im transformierten Stage-Wrapper** und ist mit dem Bild im selben Grid-Feld gestapelt → zoomt/pant **gemeinsam**, sitzt durch die relativen Koordinaten am Befund. **Zeichnen auf jeder Zoomstufe** (Pointer→normiert über das gemessene Rect); im Zeichen-Modus ist Pan/Navigation aus (Ziehen = Zeichnen, Esc verlässt erst den Modus).
+- **Kachel-Indikator:** dezentes Stift-Badge (oben rechts) bei `annotations?.length` — **zeichnet die Annotationen nicht** aufs Thumbnail.
+- **Offen / später:** Verschieben/Resize bestehender Formen per Anfasser; Aufdecken im Diashow-Drill (sobald die Diashow steht).
 
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:

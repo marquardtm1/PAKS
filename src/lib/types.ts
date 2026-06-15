@@ -50,14 +50,59 @@ export interface Case {
    */
   fileModified?: number
   /**
-   * Video-Fall: absoluter Pfad zur referenzierten Videodatei. Das Video selbst
-   * wird NICHT gespeichert/eingebettet — nur dieser Verweis plus ein Thumbnail
-   * (liegt im `image`-Feld). Ein Fall mit gesetztem `videoPath` ist ein Video-
-   * Fall. Browser-bedingt manuell eingegeben; der Pfad bricht, wenn die Datei
-   * verschoben/umbenannt wird oder auf einem anderen Rechner liegt.
+   * Video-Fall, REFERENZIERT: absoluter Pfad zur externen Videodatei. Das Video
+   * selbst liegt NICHT in PAKS — nur dieser Verweis plus ein Thumbnail (im
+   * `image`-Feld). Alternative zum Einbetten für große Dateien. Browser-bedingt
+   * manuell eingegeben; der Pfad bricht, wenn die Datei verschoben/umbenannt
+   * wird oder auf einem anderen Rechner liegt. Schließt sich mit `videoData`
+   * aus: ein Video-Fall ist entweder referenziert ODER eingebettet, nie beides.
    */
   videoPath?: string
+  /**
+   * Video-Fall, EINGEBETTET: Data-URL (base64) der Videodatei, in PAKS
+   * gespeichert (genau wie `image`) und im integrierten Player direkt abspielbar.
+   * Vergrößert Datendatei/Export deutlich (Größenwarnung beim Anlegen). Gesetzt
+   * ⇒ eingebetteter Video-Fall; schließt sich mit `videoPath` aus.
+   */
+  videoData?: string
+  /**
+   * Ein-/ausblendbare Markierungen ÜBER dem Bild (Backlog #17) — Overlay-Vektor-
+   * daten, NICHT ins Bild eingebrannt: jederzeit zeig-/verbergbar und editierbar,
+   * Originalbild bleibt unberührt. Koordinaten 0..1 relativ zum Bild, damit sie
+   * bei Zoom/Skalierung am Befund sitzen. Additiv & optional (fehlt = keine).
+   */
+  annotations?: Annotation[]
 }
+
+/** Feste Annotations-Farben (für unterschiedliche Bildkontraste). */
+export type AnnotationColor = 'red' | 'yellow' | 'green'
+
+interface AnnotationBase {
+  id: string
+  color: AnnotationColor
+}
+
+/**
+ * Eine Bild-Markierung. Alle Koordinaten sind **0..1, relativ zum Bild** (0,0 =
+ * linke obere Ecke, 1,1 = rechte untere). `arrow` als Start→End-Punkt (für den
+ * Pfeilkopf), `circle`/`rect` als Bounding-Box (Kreis wird als Ellipse in die
+ * Box gezeichnet). Box stets normalisiert (w,h ≥ 0).
+ */
+export type Annotation =
+  | (AnnotationBase & {
+      type: 'arrow'
+      x1: number
+      y1: number
+      x2: number
+      y2: number
+    })
+  | (AnnotationBase & {
+      type: 'circle' | 'rect'
+      x: number
+      y: number
+      w: number
+      h: number
+    })
 
 export type Theme = 'dark' | 'light'
 

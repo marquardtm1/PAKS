@@ -1,14 +1,28 @@
 /**
- * Hilfsfunktionen für Video-Referenz-Fälle (Backlog #12).
+ * Hilfsfunktionen für Video-Fälle (Backlog #12).
  *
- * Verweis-Modell, KEIN Einbetten: PAKS speichert nur Pfad + Thumbnail, nie das
- * Video. Diese Datei kapselt die zwei kniffligen Browser-Mechanismen:
+ * Zwei Wege, ein Video-Fall zu sein:
+ *  - EINGEBETTET (Standard): die Videodaten liegen als Data-URL in `videoData`,
+ *    direkt im integrierten Player abspielbar.
+ *  - REFERENZIERT (für große Dateien): nur `videoPath` zeigt auf die externe
+ *    Datei; PAKS speichert lediglich Pfad + Thumbnail.
+ *
+ * Diese Datei kapselt zudem die zwei kniffligen Browser-Mechanismen:
  *  - extractVideoThumbnail: Standbild aus einer lokalen Videodatei (verstecktes
  *    <video> + Canvas) — Best-Effort, scheitert sauber bei nicht dekodierbaren
  *    Formaten (Aufrufer fällt dann auf „manuell wählen" zurück).
  *  - toFileUrl: Pfad → file://-URL fürs Best-Effort-„Abspielen" (Chromium blockt
  *    file:// von http/localhost meist — der verlässliche Weg bleibt „Kopieren").
  */
+import type { Case } from '@/lib/types'
+
+/** Video-Fall: eingebettet (videoData) ODER referenziert (videoPath). */
+export const isVideoCase = (c: Case): boolean => !!c.videoData || !!c.videoPath
+/** Eingebettet: Videodaten liegen in PAKS → integrierter Player im Detail. */
+export const isEmbeddedVideo = (c: Case): boolean => !!c.videoData
+/** Referenziert: nur Pfad, Video bleibt extern (Pfad-Zugang im Detail). */
+export const isReferencedVideo = (c: Case): boolean =>
+  !c.videoData && !!c.videoPath
 
 /** Wartet auf ein Medien-Event ODER scheitert (error/Timeout). */
 function onceOrFail(
