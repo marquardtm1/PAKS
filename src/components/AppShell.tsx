@@ -415,6 +415,10 @@ export function AppShell() {
           selectedIds={selectedIds}
           onCardSelect={handleCardSelect}
           onCardOpen={openViewer}
+          onCardEdit={(id) => {
+            const found = snapshot.cases.find((x) => x.id === id)
+            if (found) setEditCase(found)
+          }}
           onCardDragStart={handleCardDragStart}
           onClearSelection={clearSelection}
         />

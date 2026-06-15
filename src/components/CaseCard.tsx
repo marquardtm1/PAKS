@@ -13,7 +13,9 @@ import { TagChip } from './TagChip'
  *  - Einfachklick → auswählen (Modifier Strg/Shift werden hochgereicht).
  *  - Doppelklick → Vollbild-Ansicht (Lightbox).
  *  - Drag & Drop → Kachel auf einen Sidebar-Wert ziehen, um den Fall zu taggen.
- * Ein Drag löst keinen Klick aus; Einfach-/Doppelklick kollidieren nicht.
+ *  - Hover-Stift (Ecke) → Bearbeiten-Formular direkt öffnen (ohne Lightbox).
+ * Ein Drag löst keinen Klick aus; Einfach-/Doppelklick kollidieren nicht; der
+ * Stift kapselt seine Klicks (stopPropagation) und löst keine der obigen aus.
  */
 export function CaseCard({
   c,
@@ -21,6 +23,7 @@ export function CaseCard({
   selected,
   onSelect,
   onOpen,
+  onEdit,
   onDragStart,
 }: {
   c: Case
@@ -28,6 +31,7 @@ export function CaseCard({
   selected: boolean
   onSelect: (id: string, e: React.MouseEvent) => void
   onOpen: (id: string) => void
+  onEdit: (id: string) => void
   onDragStart: (id: string, e: React.DragEvent) => void
 }) {
   const chips = caseChips(c, tagGroups)
@@ -45,6 +49,7 @@ export function CaseCard({
   }
 
   // Auswahl sichtbar: Akzent-Rahmen + Ring, hebt sich klar vom Hover ab.
+  // `group` macht die ganze Kachel zum Hover-Ziel für den Stift.
   const selectionClass = selected
     ? 'border-accent ring-2 ring-accent'
     : 'hover:border-accent'
@@ -54,8 +59,9 @@ export function CaseCard({
     return (
       <button
         {...commonProps}
-        className={`border-note-border bg-note-bg flex flex-col overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${selectionClass}`}
+        className={`group border-note-border bg-note-bg relative flex flex-col overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${selectionClass}`}
       >
+        <EditButton onEdit={() => onEdit(c.id)} />
         <div className="border-note-border flex min-h-[90px] flex-1 items-start gap-2 border-b p-3">
           <span className="shrink-0 text-base opacity-70">📝</span>
           <span className="text-note line-clamp-4 text-xs leading-relaxed">
@@ -70,8 +76,9 @@ export function CaseCard({
   return (
     <button
       {...commonProps}
-      className={`border-border bg-surface flex flex-col overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${selectionClass}`}
+      className={`group border-border bg-surface relative flex flex-col overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${selectionClass}`}
     >
+      <EditButton onEdit={() => onEdit(c.id)} />
       <div className="relative aspect-square w-full shrink-0">
         {c.image ? (
           <img
@@ -91,6 +98,48 @@ export function CaseCard({
       </div>
       <CardBody title={c.title} chips={chips} hasNote={hasNote} />
     </button>
+  )
+}
+
+/**
+ * Hover-Bearbeiten-Stift in der oberen linken Ecke (links, um dem Annotations-
+ * Badge oben rechts auszuweichen). Liegt als role=button-Span IM Kachel-Button
+ * (kein verschachteltes <button>), kapselt aber alle Pointer-/Klick-Events, damit
+ * weder Auswahl, Lightbox noch Drag mitausgelöst werden.
+ *
+ * Sichtbarkeit: auf Geräten mit Maus erst bei Kachel-Hover, sonst (Touch, kein
+ * Hover) dauerhaft dezent — sonst wäre er per Finger nie erreichbar.
+ */
+function EditButton({ onEdit }: { onEdit: () => void }) {
+  return (
+    <span
+      role="button"
+      tabIndex={-1}
+      aria-label="Fall bearbeiten"
+      title="Bearbeiten"
+      draggable={false}
+      onClick={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        onEdit()
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onDragStart={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+      }}
+      className="bg-bg/80 text-text-muted hover:text-text hover:border-accent border-border absolute top-1.5 left-1.5 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-[var(--radius-card)] border opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 [@media(hover:none)]:opacity-70"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </svg>
+    </span>
   )
 }
 

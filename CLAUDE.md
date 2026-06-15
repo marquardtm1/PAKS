@@ -180,10 +180,11 @@ Tag-Gruppen **untereinander** und Werte **innerhalb ihrer Gruppe** per Drag umso
 - **Visuelles Drop-Feedback:** klare **Einfügemarke**.
 - **Vor dem Bauen klären:** (1) Unterscheidung der zwei Drag-Arten, (2) **Touch-Tauglichkeit**.
 
-### 15. Direkt-Bearbeiten-Button in der Kachel — ❌ OFFEN
-Ein kleiner **Bearbeiten-Button direkt auf der Kachel**, der das Bearbeiten-Formular öffnet — **ohne Umweg über die Lightbox**.
-- **Einblendung:** per **Hover** (erscheint, wenn die Maus über die Kachel/in ihre Gegend fährt), **dezent**, damit das Grid nicht überladen wird.
-- **KRITISCH — vertragen mit bestehenden Kachel-Interaktionen:** Einfachklick = auswählen, Doppelklick = Lightbox. Der Button darf diese **nicht mit auslösen** (Event-Propagation stoppen).
+### 15. Direkt-Bearbeiten-Button in der Kachel — ✅ ERLEDIGT
+Kleiner **Stift-Button** in der oberen linken Ecke der Kachel (`EditButton` in `CaseCard.tsx`), öffnet das **vorbefüllte Bearbeiten-Formular direkt** — ohne Umweg über die Lightbox.
+- **Einblendung:** per **Hover** dezent (`group-hover`); auf Touch/ohne Maus (`@media (hover:none)`) dauerhaft leicht sichtbar, sonst per Finger nicht erreichbar.
+- **Kollisionsfrei:** liegt als `role=button`-Span IM Kachel-Button (kein verschachteltes `<button>`), kapselt aber Klick/Doppelklick/Pointer/Dragstart (`stopPropagation` + `draggable=false`) → löst **weder Auswahl noch Lightbox noch Drag** aus.
+- Verdrahtet über `CaseGrid` (`onCardEdit`) → AppShell (`setEditCase`).
 
 ### 16. Kombiniertes Filter-System (mehrere Kriterien verknüpfen) — ❌ OFFEN
 **Aktueller Stand:** Immer nur **ein** Filter aktiv. Die Sidebar trennt seit Kurzem sauber **Typ** (Alle/Bilder/Videos/Notizen) von **Eigenschaft** (Mit Notizen, Ohne Tags) und Tag-Werten — aber alle drei Familien schließen sich noch **gegenseitig aus** (ein `ActiveFilter` in `filter.ts`).
