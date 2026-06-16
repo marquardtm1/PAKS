@@ -75,13 +75,23 @@ export interface Case {
 }
 
 /** Feste Annotations-Farben (für unterschiedliche Bildkontraste). 'white' als
- *  Kontrastfarbe auf dunklen Bildbereichen. Additiv — bestehende Annotationen
- *  bleiben gültig. */
-export type AnnotationColor = 'red' | 'yellow' | 'green' | 'white'
+ *  Kontrastfarbe auf dunklen Bildbereichen, 'blue' als kräftige Kontrastfarbe auf
+ *  hellen/grauen Flächen. Additiv — bestehende Annotationen bleiben gültig. */
+export type AnnotationColor = 'red' | 'yellow' | 'green' | 'white' | 'blue'
 
 interface AnnotationBase {
   id: string
   color: AnnotationColor
+  /**
+   * Ziel-Strichstärke in CSS-Pixeln (Bildschirmstärke). Das Rendern legt den
+   * Strich an die DARGESTELLTE Bildgröße an (nicht an die native Auflösung) und
+   * rechnet die Zoomstufe heraus → optisch konstant über Bilder UND Zoomstufen.
+   * Pro Annotation gespeichert, damit eine spätere Default-Änderung bestehende
+   * NICHT springen lässt. Additiv & optional; aufgelöst über resolveStrokePx()
+   * (in annotations.ts), das auch ältere Bruchteil-Werte und Altbestand (fehlend)
+   * verträglich auf px abbildet.
+   */
+  strokeWidth?: number
 }
 
 /**

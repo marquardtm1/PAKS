@@ -1,13 +1,16 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Annotation, AnnotationColor } from '@/lib/types'
 import { uid } from '@/lib/id'
-import { buildAnnotation, clamp01, colorHex, ANNOTATION_COLORS } from '@/lib/annotations'
+import {
+  buildAnnotation,
+  clamp01,
+  colorHex,
+  resolveStrokePx,
+  ANNOTATION_COLORS,
+} from '@/lib/annotations'
 
 /** Werkzeug im Zeichen-Modus. */
 export type AnnotationTool = 'arrow' | 'circle' | 'rect'
-
-/** Strichstärke als Anteil der langen Bildkante (skaliert mit dem Bild). */
-const STROKE_FRAC = 0.005
 
 /**
  * SVG-Overlay über dem Bild: rendert die Annotationen und — im Zeichen-Modus —
@@ -27,10 +30,12 @@ export function AnnotationLayer({
   visible,
   naturalW,
   naturalH,
+  zoomScale,
   drawMode,
   tool,
   color,
-  selectedId,
+  strokeWidth,
+  selectedIds,
   onSelect,
   onCreate,
   className,
@@ -39,10 +44,16 @@ export function AnnotationLayer({
   visible: boolean
   naturalW: number
   naturalH: number
+  /** Aktuelle Zoomstufe des Stage-Wrappers — der Strich wird dadurch geteilt,
+   *  damit er beim Zoomen optisch konstant bleibt (non-scaling-stroke-Effekt). */
+  zoomScale: number
   drawMode: boolean
   tool: AnnotationTool
   color: AnnotationColor
-  selectedId: string | null
+  /** Ziel-Strichstärke in CSS-px für NEU gezeichnete Formen. */
+  strokeWidth: number
+  /** IDs der aktuell ausgewählten Formen (Mehrfachauswahl möglich). */
+  selectedIds: string[]
   onSelect: (id: string | null) => void
   onCreate: (a: Annotation) => void
   /** Wird auf das <svg> gelegt — vom Aufrufer zum Stapeln über dem Bild genutzt. */
@@ -50,12 +61,40 @@ export function AnnotationLayer({
 }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [draft, setDraft] = useState<{ a: Point; b: Point } | null>(null)
+  // Dargestellte (un-gezoomte) lange Kante des Overlays in CSS-px. Gemessen über
+  // die Layout-Box (clientWidth/contentRect) — die ist vom Zoom-Transform des
+  // Stage-Wrappers UNberührt, also genau die Bildschirmgröße bei Zoom 1. Daran
+  // wird die px-Ziel-Strichstärke angelegt (Auflösungs-unabhängig); die Zoomstufe
+  // wird separat herausgerechnet. useLayoutEffect: synchron vor dem Paint messen,
+  // damit der erste Frame schon die richtige Stärke hat (kein Aufblitzen).
+  const [displayedLong, setDisplayedLong] = useState(0)
+  useLayoutEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    const apply = (w: number, h: number) => {
+      const long = Math.max(w, h)
+      if (long > 0) setDisplayedLong(long)
+    }
+    apply(el.clientWidth, el.clientHeight)
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect
+      if (r) apply(r.width, r.height)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [naturalW, naturalH, visible, drawMode])
 
   if (!naturalW || !naturalH) return null
   // Im Zeichen-Modus immer rendern; sonst nur, wenn der Anzeige-Schalter an ist.
   if (!visible && !drawMode) return null
 
-  const sw = Math.max(naturalW, naturalH) * STROKE_FRAC
+  // Ziel-px → SVG-Nutzereinheiten: an die dargestellte Größe anlegen und die
+  // Zoomstufe herausrechnen. Eingesetzt ergibt die on-screen-Stärke exakt die
+  // Ziel-px — konstant über native Auflösung UND Zoom. markerUnits="strokeWidth"
+  // skaliert den Pfeilkopf mit → auch er bleibt optisch konstant.
+  const maxNatural = Math.max(naturalW, naturalH)
+  const swUser = (px: number) =>
+    displayedLong > 0 ? (px * maxNatural) / (displayedLong * (zoomScale || 1)) : 0
 
   function toNorm(e: React.PointerEvent): Point {
     const r = svgRef.current!.getBoundingClientRect()
@@ -87,12 +126,12 @@ export function AnnotationLayer({
     } catch {
       // Capture kann bereits verloren sein.
     }
-    const built = buildAnnotation(tool, color, uid(), draft.a, draft.b)
+    const built = buildAnnotation(tool, color, strokeWidth, uid(), draft.a, draft.b)
     setDraft(null)
     if (built) onCreate(built)
   }
 
-  const draftAnn = draft ? draftToAnnotation(draft, tool, color) : null
+  const draftAnn = draft ? draftToAnnotation(draft, tool, color, strokeWidth) : null
 
   return (
     <svg
@@ -141,8 +180,8 @@ export function AnnotationLayer({
             ann={a}
             w={naturalW}
             h={naturalH}
-            sw={sw}
-            selected={a.id === selectedId}
+            sw={swUser(resolveStrokePx(a.strokeWidth))}
+            selected={selectedIds.includes(a.id)}
             interactive={drawMode}
             onSelect={onSelect}
           />
@@ -154,7 +193,7 @@ export function AnnotationLayer({
           ann={draftAnn}
           w={naturalW}
           h={naturalH}
-          sw={sw}
+          sw={swUser(resolveStrokePx(draftAnn.strokeWidth))}
           selected={false}
           interactive={false}
           onSelect={onSelect}
@@ -174,15 +213,26 @@ function draftToAnnotation(
   draft: { a: Point; b: Point },
   tool: AnnotationTool,
   color: AnnotationColor,
+  strokeWidth: number,
 ): Annotation {
   const { a, b } = draft
   if (tool === 'arrow') {
-    return { id: '__draft', type: 'arrow', color, x1: a.x, y1: a.y, x2: b.x, y2: b.y }
+    return {
+      id: '__draft',
+      type: 'arrow',
+      color,
+      strokeWidth,
+      x1: a.x,
+      y1: a.y,
+      x2: b.x,
+      y2: b.y,
+    }
   }
   return {
     id: '__draft',
     type: tool,
     color,
+    strokeWidth,
     x: Math.min(a.x, b.x),
     y: Math.min(a.y, b.y),
     w: Math.abs(b.x - a.x),

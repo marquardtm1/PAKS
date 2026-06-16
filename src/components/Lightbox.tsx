@@ -8,7 +8,7 @@ import {
   normalizeVideoPath,
   toFileUrl,
 } from '@/lib/video'
-import { ANNOTATION_COLORS } from '@/lib/annotations'
+import { ANNOTATION_COLORS, STROKE_WIDTHS, DEFAULT_STROKE_PX } from '@/lib/annotations'
 import { AnnotationLayer, type AnnotationTool } from './AnnotationLayer'
 import { TagChip } from './TagChip'
 
@@ -95,7 +95,10 @@ export function Lightbox({
   const [drawMode, setDrawMode] = useState(false)
   const [tool, setTool] = useState<AnnotationTool>('arrow')
   const [annColor, setAnnColor] = useState<AnnotationColor>('red')
-  const [selectedAnnId, setSelectedAnnId] = useState<string | null>(null)
+  // Ziel-Strichstärke (CSS-px) für neu gezeichnete Formen.
+  const [annWidth, setAnnWidth] = useState<number>(DEFAULT_STROKE_PX)
+  // Mehrfachauswahl: IDs der ausgewählten Formen (gemeinsam löschen/umfärben).
+  const [selectedAnnIds, setSelectedAnnIds] = useState<string[]>([])
   // Natürliche Bildmaße aus onLoad — die SVG-viewBox braucht sie für die
   // uniforme Abbildung (siehe AnnotationLayer).
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(
@@ -125,7 +128,7 @@ export function Lightbox({
   // und Annotations-Auswahl zurücksetzen.
   useEffect(() => {
     setTransform({ scale: 1, tx: 0, ty: 0 })
-    setSelectedAnnId(null)
+    setSelectedAnnIds([])
   }, [index])
 
   // Natürliche Bildmaße (für die SVG-viewBox) robust pro angezeigtem Bild
@@ -169,19 +172,19 @@ export function Lightbox({
         // Erst aus dem Zeichen-Modus, dann erst die Lightbox schließen.
         if (drawMode) {
           setDrawMode(false)
-          setSelectedAnnId(null)
+          setSelectedAnnIds([])
         } else onClose()
         return
       }
       if (drawMode) {
-        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnId) {
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnIds.length > 0) {
           const cur = cases[index]
           if (cur) {
             onAnnotationsChange(
               cur.id,
-              (cur.annotations ?? []).filter((a) => a.id !== selectedAnnId),
+              (cur.annotations ?? []).filter((a) => !selectedAnnIds.includes(a.id)),
             )
-            setSelectedAnnId(null)
+            setSelectedAnnIds([])
           }
         }
         return // im Zeichen-Modus nicht blättern
@@ -200,7 +203,7 @@ export function Lightbox({
     onUndo,
     onRedo,
     drawMode,
-    selectedAnnId,
+    selectedAnnIds,
     cases,
     onAnnotationsChange,
   ])
@@ -272,23 +275,37 @@ export function Lightbox({
 
   const addAnnotation = (a: Annotation) => {
     onAnnotationsChange(c.id, [...annotations, a])
-    setSelectedAnnId(a.id)
+    setSelectedAnnIds([a.id])
   }
   const deleteSelected = () => {
-    if (!selectedAnnId) return
+    if (selectedAnnIds.length === 0) return
     onAnnotationsChange(
       c.id,
-      annotations.filter((a) => a.id !== selectedAnnId),
+      annotations.filter((a) => !selectedAnnIds.includes(a.id)),
     )
-    setSelectedAnnId(null)
+    setSelectedAnnIds([])
   }
-  // Farbklick: ausgewählte Form umfärben (sonst nur Farbe fürs nächste Zeichnen).
+  // Alle Formen des Bildes auf einmal auswählen (gemeinsam löschen/umfärben).
+  const selectAll = () => setSelectedAnnIds(annotations.map((a) => a.id))
+  // Farbklick: ausgewählte Form(en) umfärben (sonst nur Farbe fürs nächste Zeichnen).
   const pickColor = (color: AnnotationColor) => {
     setAnnColor(color)
-    if (selectedAnnId) {
+    if (selectedAnnIds.length > 0) {
       onAnnotationsChange(
         c.id,
-        annotations.map((a) => (a.id === selectedAnnId ? { ...a, color } : a)),
+        annotations.map((a) => (selectedAnnIds.includes(a.id) ? { ...a, color } : a)),
+      )
+    }
+  }
+  // Strichstärke-Klick: ausgewählte Form(en) anpassen (sonst nur fürs nächste Zeichnen).
+  const pickWidth = (strokeWidth: number) => {
+    setAnnWidth(strokeWidth)
+    if (selectedAnnIds.length > 0) {
+      onAnnotationsChange(
+        c.id,
+        annotations.map((a) =>
+          selectedAnnIds.includes(a.id) ? { ...a, strokeWidth } : a,
+        ),
       )
     }
   }
@@ -380,7 +397,7 @@ export function Lightbox({
               active={drawMode}
               onClick={() => {
                 setDrawMode((d) => !d)
-                setSelectedAnnId(null)
+                setSelectedAnnIds([])
                 setAnnotationsVisible(true)
               }}
               title="Markierungen zeichnen / bearbeiten"
@@ -509,11 +526,13 @@ export function Lightbox({
                 visible={annotationsVisible}
                 naturalW={naturalSize.w}
                 naturalH={naturalSize.h}
+                zoomScale={transform.scale}
                 drawMode={drawMode}
                 tool={tool}
                 color={annColor}
-                selectedId={selectedAnnId}
-                onSelect={setSelectedAnnId}
+                strokeWidth={annWidth}
+                selectedIds={selectedAnnIds}
+                onSelect={(id) => setSelectedAnnIds(id ? [id] : [])}
                 onCreate={addAnnotation}
               />
             )}
@@ -542,15 +561,19 @@ export function Lightbox({
             onToolChange={setTool}
             color={annColor}
             onColorChange={pickColor}
-            canDelete={selectedAnnId !== null}
+            width={annWidth}
+            onWidthChange={pickWidth}
+            canDelete={selectedAnnIds.length > 0}
             onDelete={deleteSelected}
+            canSelectAll={annotations.length > 0}
+            onSelectAll={selectAll}
             canUndo={canUndo}
             onUndo={onUndo}
             canRedo={canRedo}
             onRedo={onRedo}
             onExit={() => {
               setDrawMode(false)
-              setSelectedAnnId(null)
+              setSelectedAnnIds([])
             }}
           />
         )}
@@ -640,8 +663,12 @@ function DrawToolbar({
   onToolChange,
   color,
   onColorChange,
+  width,
+  onWidthChange,
   canDelete,
   onDelete,
+  canSelectAll,
+  onSelectAll,
   canUndo,
   onUndo,
   canRedo,
@@ -652,8 +679,13 @@ function DrawToolbar({
   onToolChange: (t: AnnotationTool) => void
   color: AnnotationColor
   onColorChange: (c: AnnotationColor) => void
+  /** Aktuelle Strichstärke (Bruchteil) für neue Formen. */
+  width: number
+  onWidthChange: (w: number) => void
   canDelete: boolean
   onDelete: () => void
+  canSelectAll: boolean
+  onSelectAll: () => void
   canUndo: boolean
   onUndo: () => void
   canRedo: boolean
@@ -709,6 +741,31 @@ function DrawToolbar({
         ))}
       </div>
       <span className="bg-border h-5 w-px" />
+      {/* Strichstärke: gilt für neue Formen; mit Auswahl ändert sie die ausgewählten. */}
+      <div className="flex items-center gap-1">
+        {STROKE_WIDTHS.map((w) => (
+          <button
+            key={w.key}
+            type="button"
+            title={`Strichstärke: ${w.label}`}
+            aria-pressed={width === w.px}
+            onClick={() => onWidthChange(w.px)}
+            className={[
+              'flex h-7 w-7 items-center justify-center rounded border transition-colors',
+              width === w.px
+                ? 'bg-accent border-accent text-white'
+                : 'bg-surface-2 border-border text-text hover:border-accent',
+            ].join(' ')}
+          >
+            {/* Waagrechter Balken, dessen Höhe die Stärke andeutet. */}
+            <span
+              className="block w-4 rounded-full bg-current"
+              style={{ height: `${w.key === 'thin' ? 1.5 : w.key === 'medium' ? 3 : 5}px` }}
+            />
+          </button>
+        ))}
+      </div>
+      <span className="bg-border h-5 w-px" />
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -734,9 +791,19 @@ function DrawToolbar({
       <span className="bg-border h-5 w-px" />
       <button
         type="button"
+        onClick={onSelectAll}
+        disabled={!canSelectAll}
+        title="Alle Markierungen auswählen"
+        aria-label="Alle Markierungen auswählen"
+        className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
+      >
+        <SelectAllIcon />
+      </button>
+      <button
+        type="button"
         onClick={onDelete}
         disabled={!canDelete}
-        title="Ausgewählte Markierung löschen (Entf)"
+        title="Ausgewählte Markierung(en) löschen (Entf)"
         className="bg-surface-2 border-border text-text-muted hover:text-danger flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
       >
         <TrashIcon />
@@ -810,6 +877,16 @@ function RectIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="4" y="6" width="16" height="12" rx="1" />
+    </svg>
+  )
+}
+
+function SelectAllIcon() {
+  // Gestrichelter Auswahlrahmen mit kleinem Inhalt — „alles markieren".
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="3 3" />
+      <rect x="8" y="8" width="8" height="8" rx="1" fill="currentColor" stroke="none" />
     </svg>
   )
 }

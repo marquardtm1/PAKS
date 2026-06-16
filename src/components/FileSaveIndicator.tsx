@@ -9,7 +9,7 @@ import { useStore } from '@/store/StoreProvider'
  * ist — damit man weiß, wann man den USB-Stick gefahrlos abziehen kann.
  */
 export function FileSaveIndicator() {
-  const { fileStatus, fileSaveState } = useStore()
+  const { fileStatus, fileSaveState, fileName } = useStore()
 
   if (
     fileStatus !== 'connected' &&
@@ -38,10 +38,18 @@ export function FileSaveIndicator() {
     label = 'Gespeichert'
   }
 
+  // Tooltip: konkrete Datei nennen. Browser geben aus Sicherheitsgründen nur den
+  // Dateinamen preis, nicht den vollständigen Pfad (File System Access API) —
+  // das wird im Tooltip kurz erwähnt, damit der Name nicht als „falsch"
+  // missverstanden wird.
+  const title = fileName
+    ? `Lebende Datendatei: ${fileName}\n(Der Browser gibt nur den Dateinamen preis, nicht den vollständigen Pfad.)`
+    : 'Status der lebenden Datendatei'
+
   return (
     <div
       className="text-text-muted hidden items-center gap-1.5 text-[11px] sm:flex"
-      title="Status der lebenden Datendatei"
+      title={title}
     >
       <span
         aria-hidden="true"

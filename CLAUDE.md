@@ -58,7 +58,7 @@ Ein funktionierender Prototyp existiert als einzelne HTML-Datei (`radlearn_proto
 
 ## Nächste Feature-Prioritäten
 
-> **Status-Legende:** ✅ erledigt · 🟡 teilweise · ❌ offen. Stand: 2026-06-12.
+> **Status-Legende:** ✅ erledigt · 🟡 teilweise · ❌ offen. Stand: 2026-06-16.
 > Der Status spiegelt den tatsächlichen Code-Stand; die Priorisierung der noch
 > offenen Punkte bleibt wie nummeriert.
 
@@ -234,6 +234,20 @@ Eingebettete Bilder als **einzelne Dateien** (.jpg/.png) herausexportieren — *
 - **Zweck:** macht PAKS zur durchsuchbaren Bildablage für kuratierte Sets (**Paket-/Atlas-Gedanke**).
 - **Offen:** Annotationen optional **einbrennen** oder **nackte Bilder** exportieren; Metadaten (Tags/Notizen) als **Begleit-Textdatei**.
 
+### 23. Blau als Annotationsfarbe — ✅ ERLEDIGT
+Die Farbauswahl der Bild-Annotationen (#17) um **Blau** (`#3b82f6`) ergänzt — kräftige Kontrastfarbe auf hellen/grauen Flächen. `AnnotationColor` additiv um `'blue'` erweitert (bestehende Annotationen unberührt), Blau in `ANNOTATION_COLORS`; Werkzeugleiste, Umfärben und SVG-Pfeilkopf-Marker iterieren über die Liste → automatisch dabei. Analog zu #20 (Weiß).
+
+### 24. Einstellbare, bildschirm-konstante Annotations-Strichstärke — ✅ ERLEDIGT
+Strichstärke der Annotationen (#17) **pro Annotation** wählbar (Dünn/Mittel/Dick) über drei Knöpfe in der Zeichnen-Werkzeugleiste; die Wahl gilt für neu Gezeichnetes und ändert — wie die Farbe — die aktuell ausgewählte(n) Form(en).
+- **Bildschirm-konstant statt auflösungsabhängig:** `strokeWidth` ist eine **Ziel-Bildschirmstärke in CSS-px**. Das Rendern (`AnnotationLayer`) misst die **dargestellte (un-gezoomte) Overlay-Größe** über die Layout-Box (`clientWidth`/`ResizeObserver`-`contentRect`, vom Zoom-`transform` unberührt) und rechnet die Zoomstufe heraus: `swUser = px × maxNatural / (displayedLong × zoomScale)`. Ergebnis: gleiche optische Dicke über **native Auflösung UND Zoom**. `markerUnits="strokeWidth"` zieht den Pfeilkopf mit.
+- **Datenmodell:** additives optionales `strokeWidth?` (CSS-px) an `AnnotationBase`. `resolveStrokePx()` erkennt Alt-Werte an der Größenordnung (alte Bruchteil-Presets < 1 → nächste px-Stufe; `undefined` = alter fixer Default 0,005 ≈ **Dick**) — **keine Datenmigration**, Alt-Annotationen bleiben treu.
+
+### 25. „Alle Annotationen markieren" + Mehrfachauswahl — ✅ ERLEDIGT
+Annotations-Auswahl von Einzel- auf **Mehrfachauswahl** umgestellt (`selectedAnnIds: string[]`): Einzelklick wählt eine Form, Hintergrundklick leert. Neuer Knopf in der Zeichnen-Werkzeugleiste wählt **alle** Formen des Bildes → gemeinsam **löschen** (Entf/Papierkorb) oder **umfärben/Strichstärke ändern**. Jede Aktion bleibt eine `updateCase`-Mutation → undo-fähig.
+
+### 26. Dateiname im Speicherstatus-Tooltip — ✅ ERLEDIGT
+`FileSaveIndicator` zeigt beim Hover die **konkrete lebende Datei** („Lebende Datendatei: \<name>"). Hinweis im Tooltip, dass die File System Access API browser-bedingt **nur den Dateinamen, nicht den vollständigen Pfad** preisgibt (damit der Name nicht als unvollständig missverstanden wird). Teil des Speicher-Kontrollbereichs (#13).
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
@@ -246,7 +260,7 @@ Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche da
 - **Import-Dialog:** Dateinamen-Aufteilung (Titel/Notizen) als **sichtbare** Option mit Trennzeichen + Live-Vorschau (Titel | Notiz); Wahl persistiert, teilt geladene (nicht manuell editierte) Einträge sofort neu auf (Teil von #2).
 - **Tooling/Qualität:** ESLint (`rules-of-hooks`) + Typecheck als `lint`-Script, im Build vorgeschaltet und als Pre-Commit-Hook (Husky) — nur lauffähige Stände sind committbar.
 
-### Nächste Schritte (Stand 2026-06-12)
+### Nächste Schritte (Stand 2026-06-16)
 - **Weg B (lebende Datei, #3)** — der vereinbarte nächste Datensicherheits-Schritt.
 - **Diashow** (Grundlage für #5 Shuffle und #6 SM-2) — baut auf der Lightbox auf; Nutzer wollte zuvor mit echtem Bestand dogfooden.
 
