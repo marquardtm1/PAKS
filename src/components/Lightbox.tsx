@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Annotation, AnnotationColor, Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
 import {
@@ -17,7 +17,7 @@ import {
   computeAnnotationIndices,
   hasLabel,
 } from '@/lib/annotations'
-import { AnnotationLayer, type AnnotationTool } from './AnnotationLayer'
+import { AnnotationLayer, type ToolKind } from './AnnotationLayer'
 import { TagChip } from './TagChip'
 
 // Zoom-Grenzen + Schritt pro Rad-Rasterung (nicht endlos rein/raus).
@@ -101,7 +101,9 @@ export function Lightbox({
   // Annotations-Zustand (Backlog #17). Nur für reine Bild-Fälle relevant.
   const [annotationsVisible, setAnnotationsVisible] = useState(true)
   const [drawMode, setDrawMode] = useState(false)
-  const [tool, setTool] = useState<AnnotationTool>('arrow')
+  // Default 'select' (Auswahl/Bewegen): Zeichen-Modus betritt man „sicher" zum
+  // Schauen/Auswählen/Zoomen — ein Zeichen-Werkzeug wählt man bewusst.
+  const [tool, setTool] = useState<ToolKind>('select')
   const [annColor, setAnnColor] = useState<AnnotationColor>('red')
   // Ziel-Strichstärke (CSS-px) für neu gezeichnete Formen.
   const [annWidth, setAnnWidth] = useState<number>(DEFAULT_STROKE_PX)
@@ -394,6 +396,18 @@ export function Lightbox({
     setSelectedAnnIds(annotations.map((a) => a.id))
     setEditingAnnId(null) // Mehrfachauswahl → kein Einzel-Label-Editor
   }
+  // Liste → Bild: Klick auf eine Zeile wählt die Annotation im Bild aus. Ist der
+  // Zeichen-Modus aus, wird er aktiviert (mit Auswahl/Bewegen), da Auswahl/
+  // Bearbeitung dort stattfindet. Label-Editor erscheint (ohne Fokus, wie Form-Klick).
+  const selectFromList = (id: string) => {
+    if (!drawMode) {
+      setDrawMode(true)
+      setTool('select')
+      setAnnotationsVisible(true)
+    }
+    setSelectedAnnIds([id])
+    openLabelEditor(id, false)
+  }
   // Farbklick: ausgewählte Form(en) umfärben (sonst nur Farbe fürs nächste Zeichnen).
   const pickColor = (color: AnnotationColor) => {
     setAnnColor(color)
@@ -417,10 +431,15 @@ export function Lightbox({
     }
   }
 
+  // Pan ist im Zeichen-Modus AUS, außer beim Auswahl/Bewegen-Werkzeug — dort soll
+  // man wie in der normalen Lightbox zoomen/pannen, ohne den Modus zu verlassen.
+  const panAllowed = !drawMode || tool === 'select'
+
   // Bild im gezoomten Zustand mit der Maus verschieben (Pan). PointerCapture
-  // hält den Drag auch außerhalb des Bildes; bei 100 % und im Zeichen-Modus aus.
+  // hält den Drag auch außerhalb des Bildes; bei 100 % bzw. wenn Pan nicht
+  // erlaubt ist (Zeichen-Werkzeug aktiv), aus.
   function onStagePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (drawMode || transformRef.current.scale <= 1) return
+    if (!panAllowed || transformRef.current.scale <= 1) return
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
     dragRef.current = {
@@ -503,7 +522,9 @@ export function Lightbox({
             <HeaderToggle
               active={drawMode}
               onClick={() => {
-                setDrawMode((d) => !d)
+                const entering = !drawMode
+                setDrawMode(entering)
+                if (entering) setTool('select') // sicher betreten: nicht sofort zeichnen
                 setSelectedAnnIds([])
                 setEditingAnnId(null)
                 setAnnotationsVisible(true)
@@ -602,9 +623,8 @@ export function Lightbox({
             }
             style={{
               transform: `translate(${transform.tx}px, ${transform.ty}px) scale(${transform.scale})`,
-              cursor: drawMode
-                ? 'default'
-                : zoomed
+              cursor:
+                panAllowed && zoomed
                   ? dragging
                     ? 'grabbing'
                     : 'grab'
@@ -776,19 +796,27 @@ export function Lightbox({
               <ul className="max-h-[24vh] space-y-1 overflow-y-auto pb-3" data-scrollable>
                 {labeledAnnotations.map((a) => {
                   const n = annIndices.get(a.id)
+                  const isSelected = selectedAnnIds.includes(a.id)
                   return (
-                    <li
-                      key={a.id}
-                      className="flex items-center gap-2 text-[15px] leading-snug"
-                      style={{ color: colorHex(a.color) }}
-                    >
-                      <span className="inline-flex shrink-0 items-center gap-1">
-                        <AnnShapeIcon type={a.type} />
-                        {typeof n === 'number' && (
-                          <span className="text-[12px] font-bold tabular-nums">{n}</span>
-                        )}
-                      </span>
-                      <span className="break-words">{a.label}</span>
+                    <li key={a.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectFromList(a.id)}
+                        title="Im Bild auswählen"
+                        className={[
+                          'flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[15px] leading-snug transition-colors',
+                          isSelected ? 'bg-surface-2' : 'hover:bg-surface-2/60',
+                        ].join(' ')}
+                        style={{ color: colorHex(a.color) }}
+                      >
+                        <span className="inline-flex shrink-0 items-center gap-1">
+                          <AnnShapeIcon type={a.type} />
+                          {typeof n === 'number' && (
+                            <span className="text-[12px] font-bold tabular-nums">{n}</span>
+                          )}
+                        </span>
+                        <span className="break-words">{a.label}</span>
+                      </button>
                     </li>
                   )
                 })}
@@ -856,8 +884,8 @@ function DrawToolbar({
   onRedo,
   onExit,
 }: {
-  tool: AnnotationTool
-  onToolChange: (t: AnnotationTool) => void
+  tool: ToolKind
+  onToolChange: (t: ToolKind) => void
   color: AnnotationColor
   onColorChange: (c: AnnotationColor) => void
   /** Aktuelle Strichstärke (Bruchteil) für neue Formen. */
@@ -873,7 +901,8 @@ function DrawToolbar({
   onRedo: () => void
   onExit: () => void
 }) {
-  const tools: { key: AnnotationTool; label: string; icon: React.ReactNode }[] = [
+  const tools: { key: ToolKind; label: string; icon: React.ReactNode }[] = [
+    { key: 'select', label: 'Auswählen / Bewegen (zoomen & verschieben)', icon: <CursorIcon /> },
     { key: 'arrow', label: 'Pfeil', icon: <ArrowIcon /> },
     { key: 'circle', label: 'Kreis', icon: <CircleIcon /> },
     { key: 'rect', label: 'Rechteck', icon: <RectIcon /> },
@@ -881,22 +910,25 @@ function DrawToolbar({
   return (
     <div className="bg-surface/95 border-border absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-[var(--radius-card)] border px-2 py-1.5 shadow-lg backdrop-blur">
       <div className="flex items-center gap-1">
-        {tools.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            title={t.label}
-            aria-pressed={tool === t.key}
-            onClick={() => onToolChange(t.key)}
-            className={[
-              'flex h-7 w-7 items-center justify-center rounded border transition-colors',
-              tool === t.key
-                ? 'bg-accent border-accent text-white'
-                : 'bg-surface-2 border-border text-text hover:border-accent',
-            ].join(' ')}
-          >
-            {t.icon}
-          </button>
+        {tools.map((t, i) => (
+          <Fragment key={t.key}>
+            {/* Trennlinie zwischen Auswahl/Bewegen und den Zeichen-Werkzeugen. */}
+            {i === 1 && <span className="bg-border mx-0.5 h-5 w-px" />}
+            <button
+              type="button"
+              title={t.label}
+              aria-pressed={tool === t.key}
+              onClick={() => onToolChange(t.key)}
+              className={[
+                'flex h-7 w-7 items-center justify-center rounded border transition-colors',
+                tool === t.key
+                  ? 'bg-accent border-accent text-white'
+                  : 'bg-surface-2 border-border text-text hover:border-accent',
+              ].join(' ')}
+            >
+              {t.icon}
+            </button>
+          </Fragment>
         ))}
       </div>
       <span className="bg-border h-5 w-px" />
@@ -990,7 +1022,9 @@ function DrawToolbar({
         <TrashIcon />
       </button>
       <span className="text-text-muted ml-1 hidden text-[11px] md:inline">
-        Ziehen zum Zeichnen · Form anklicken zum Auswählen
+        {tool === 'select'
+          ? 'Ziehen verschiebt · Strg+Rad zoomt · Form anklicken zum Auswählen'
+          : 'Ziehen zum Zeichnen · Form anklicken zum Auswählen'}
       </span>
       <span className="bg-border h-5 w-px" />
       <button
@@ -1033,6 +1067,15 @@ function PencilIcon() {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  )
+}
+
+function CursorIcon() {
+  // Klassischer Auswahl-Cursor (Pfeilzeiger) — Werkzeug „Auswählen / Bewegen".
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round">
+      <path d="M5 3l6.5 16 2.2-6.3L20 10.5 5 3z" />
     </svg>
   )
 }

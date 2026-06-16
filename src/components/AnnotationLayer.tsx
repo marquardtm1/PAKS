@@ -11,8 +11,15 @@ import {
   ANNOTATION_COLORS,
 } from '@/lib/annotations'
 
-/** Werkzeug im Zeichen-Modus. */
+/** Zeichen-Werkzeuge (legen eine Form an). */
 export type AnnotationTool = 'arrow' | 'circle' | 'rect'
+
+/**
+ * Aktives Werkzeug im Zeichen-Modus: ein Zeichen-Werkzeug ODER 'select'
+ * (Auswahl/Bewegen). Bei 'select' wird NICHT gezeichnet — stattdessen lässt das
+ * Overlay Hintergrund-Gesten zu Zoom/Pan durch und Formen bleiben anklickbar.
+ */
+export type ToolKind = AnnotationTool | 'select'
 
 /**
  * SVG-Overlay über dem Bild: rendert die Annotationen und — im Zeichen-Modus —
@@ -51,7 +58,7 @@ export function AnnotationLayer({
    *  damit er beim Zoomen optisch konstant bleibt (non-scaling-stroke-Effekt). */
   zoomScale: number
   drawMode: boolean
-  tool: AnnotationTool
+  tool: ToolKind
   color: AnnotationColor
   /** Ziel-Strichstärke in CSS-px für NEU gezeichnete Formen. */
   strokeWidth: number
@@ -109,8 +116,12 @@ export function AnnotationLayer({
     }
   }
 
+  // Auswahl/Bewegen-Modus: nicht zeichnen, Overlay-Hintergrund durchlässig für
+  // Zoom/Pan des Stage-Wrappers (Formen bleiben über ihre Trefferflächen klickbar).
+  const selectMode = drawMode && tool === 'select'
+
   function onBgPointerDown(e: React.PointerEvent) {
-    if (!drawMode || e.button !== 0) return
+    if (!drawMode || selectMode || e.button !== 0) return
     // Auf leere Fläche → neue Form beginnen (Klick auf eine Form wird vom Shape-
     // Handler abgefangen und selektiert stattdessen).
     e.preventDefault()
@@ -131,12 +142,17 @@ export function AnnotationLayer({
     } catch {
       // Capture kann bereits verloren sein.
     }
-    const built = buildAnnotation(tool, color, strokeWidth, uid(), draft.a, draft.b)
+    // Im Select-Modus wird nie ein Draft begonnen → tool ist hier ein Zeichen-Tool.
+    const built =
+      tool === 'select'
+        ? null
+        : buildAnnotation(tool, color, strokeWidth, uid(), draft.a, draft.b)
     setDraft(null)
     if (built) onCreate(built)
   }
 
-  const draftAnn = draft ? draftToAnnotation(draft, tool, color, strokeWidth) : null
+  const draftAnn =
+    draft && tool !== 'select' ? draftToAnnotation(draft, tool, color, strokeWidth) : null
 
   return (
     <svg
@@ -147,8 +163,10 @@ export function AnnotationLayer({
       preserveAspectRatio="none"
       className={`max-h-full max-w-full ${className ?? ''}`}
       style={{
-        pointerEvents: drawMode ? 'auto' : 'none',
-        cursor: drawMode ? 'crosshair' : 'default',
+        // Select-Modus: Overlay durchlässig → Hintergrund-Gesten (Pan) fallen auf
+        // den Stage-Wrapper durch; Form-Trefferflächen re-aktivieren sich selbst.
+        pointerEvents: drawMode && !selectMode ? 'auto' : 'none',
+        cursor: selectMode ? 'default' : drawMode ? 'crosshair' : 'default',
         touchAction: 'none',
         // Verborgen-Zustand: ausblenden, aber im Zeichen-Modus gedimmt zeigen
         // (Layer rendert dann weiter, siehe Render-Guard oben).
@@ -288,7 +306,10 @@ function Shape({
           e.stopPropagation()
           onSelect(ann.id)
         },
-        style: { cursor: 'pointer' as const },
+        // pointerEvents explizit aktiv: im Select-Modus ist das <svg> auf
+        // pointer-events:none gesetzt (Hintergrund-Pan) — die Trefferfläche
+        // re-aktiviert sich hier, damit Formen weiter anklickbar bleiben.
+        style: { cursor: 'pointer' as const, pointerEvents: 'visiblePainted' as const },
       }
     : {}
 

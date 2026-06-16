@@ -256,6 +256,12 @@ Annotationen (#17) können einen **optionalen Beschriftungstext** bekommen, der 
 - **Bild-Badge (`IndexBadge`):** kleine Nummern-Scheibe in Annotationsfarbe + Kontrastziffer, **nur wenn indiziert** (ab der 2. gleichen Form+Farbe); beschriftet-aber-einzeln/unbeschriftet bleibt im Bild nackt. **Bildschirm-konstant** über die `swUser`-px-Umrechnung (#24).
 - **Liste:** je beschrifteter Annotation `[Form-Symbol]` + optionaler Index + Label, alles in der Annotationsfarbe; eigener scrollbarer Block, **immer sichtbar**.
 
+### 28. Auswahl/Bewegen-Werkzeug + Liste→Bild-Auswahl — ✅ ERLEDIGT
+Zwei Ergänzungen am Annotations-Editor (#17/#27).
+- **Auswahl/Bewegen-Werkzeug (`'select'`, `ToolKind`):** viertes Werkzeug (Cursor-Icon) vor Pfeil/Kreis/Rechteck und **Default beim Betreten** des Zeichen-Modus (man betritt ihn „sicher" zum Schauen/Auswählen, statt sofort zu zeichnen). Bei aktivem Select schaltet das SVG-Overlay auf `pointer-events: none` → Hintergrund-Gesten fallen auf den Stage-Wrapper durch (**Pan** bei Zoom, **Strg+Rad-Zoom** wie gehabt), während die **Form-Trefferflächen** sich per `pointer-events: visiblePainted` selbst re-aktivieren und klickbar bleiben (auswählen/umfärben/Stärke/löschen/relabeln). Pan-Guard von „aus sobald `drawMode`" auf `panAllowed = !drawMode || tool === 'select'` gelockert (weiterhin nur `scale > 1`); Stage-Cursor + Hinweistext passen sich an.
+  - **Bewusste Konsequenzen:** im Select-Modus kein Deselektieren per Leerklick (Pan besitzt leere Drags — Abwahl über andere Form/Esc); Form-Innenflächen (Kreis/Rechteck) zählen als Treffer.
+- **Liste → Bild (`selectFromList`):** Klick auf eine „Markierungen"-Zeile wählt die Annotation im Bild aus (Halo, Label-Editor ohne Fokus). Ist der Zeichen-Modus aus, wird er mit Auswahl/Bewegen aktiviert; die aktive Zeile ist dezent hinterlegt. Ergänzt die bestehende Bild→Liste-Zuordnung über den Index.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
