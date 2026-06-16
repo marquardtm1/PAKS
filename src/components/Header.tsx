@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
 import { FileSaveIndicator } from './FileSaveIndicator'
+import { QuickBackupButton } from './QuickBackupButton'
 
 /**
  * Schmale Kopfzeile: links die Wortmarke (Kurzform groß + aufgelöster Untertitel
@@ -38,6 +39,7 @@ export function Header() {
       <div className="min-w-0 flex-1" />
 
       <FileSaveIndicator />
+      <QuickBackupButton />
 
       <button
         type="button"
