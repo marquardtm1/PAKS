@@ -84,6 +84,11 @@ export function Lightbox({
     null,
   )
   const [dragging, setDragging] = useState(false)
+  // Pointer-Down-Zustand für den Hintergrund-Klick (Schließen neben dem Bild) —
+  // hier oben deklariert, damit der Hook nicht hinter dem Early-Return steht.
+  const backdropDownRef = useRef<{ x: number; y: number; onBackdrop: boolean } | null>(
+    null,
+  )
 
   // Annotations-Zustand (Backlog #17). Nur für reine Bild-Fälle relevant.
   const [annotationsVisible, setAnnotationsVisible] = useState(true)
@@ -318,6 +323,35 @@ export function Lightbox({
     setDragging(false)
   }
 
+  // Klick auf den leeren dunklen Hintergrund neben dem Bild schließt die
+  // Lightbox — aber nur ein ECHTER Leerklick: nicht im Zeichen-Modus, nicht auf
+  // Inhalt (Bild/Video/Notiz/Pfeile/Buttons) und nicht als Ende eines Pan-/
+  // Zoom-Drags. Schließbar sind nur die zwei mit data-lb-backdrop markierten
+  // Container (Seitenstreifen + Stage-Leerraum); alles andere trägt das Attribut
+  // nicht und schließt daher nie. (backdropDownRef ist oben bei den Refs
+  // deklariert, damit kein Hook hinter dem Early-Return steht.)
+  const isBackdrop = (t: EventTarget | null) =>
+    t instanceof HTMLElement && t.dataset.lbBackdrop !== undefined
+  function onAreaPointerDownCapture(e: React.PointerEvent) {
+    // Capture-Phase: den echten Ursprungs-Knoten sehen, BEVOR der Stage-Wrapper
+    // bei gezoomtem Bild setPointerCapture macht und das Ziel umlenkt.
+    backdropDownRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      onBackdrop: isBackdrop(e.target),
+    }
+  }
+  function onAreaPointerUp(e: React.PointerEvent) {
+    const d = backdropDownRef.current
+    backdropDownRef.current = null
+    if (drawMode || e.button !== 0 || !d) return
+    // (2) Klick auf Inhalt: Start ODER Ende nicht auf dem Backdrop → nicht schließen.
+    if (!d.onBackdrop || !isBackdrop(e.target)) return
+    // (3) Drag-Ende: nennenswerte Bewegung seit dem Druck → nicht schließen.
+    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6) return
+    onClose()
+  }
+
   return (
     <div ref={rootRef} className="fixed inset-0 z-50 flex flex-col bg-black/95">
       {/* Kopfzeile: zentrierter Titel, Aktionen rechts (linker Spacer balanciert
@@ -390,6 +424,9 @@ export function Lightbox({
       {/* Bildbereich mit seitlichen Navigationspfeilen */}
       <div
         ref={imageAreaRef}
+        data-lb-backdrop
+        onPointerDownCapture={onAreaPointerDownCapture}
+        onPointerUp={onAreaPointerUp}
         className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-16"
       >
         {!drawMode && (
@@ -418,6 +455,7 @@ export function Lightbox({
           // max-h/max-w auf dieselbe Box (object-contain bzw. intrinsische SVG-
           // Maße) → sie überlagern sich exakt und zoomen/pannen gemeinsam.
           <div
+            data-lb-backdrop
             className="absolute inset-y-0 inset-x-16 grid place-items-center"
             onPointerDown={onStagePointerDown}
             onPointerMove={onStagePointerMove}
