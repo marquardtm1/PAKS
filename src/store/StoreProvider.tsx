@@ -143,6 +143,14 @@ interface StoreValue {
    * null, wenn der Verlauf leer war.
    */
   undo: () => string | null
+  /** true, wenn der Redo-Stack mindestens einen Schritt enthält. */
+  canRedo: boolean
+  /**
+   * Zuletzt rückgängig gemachte Änderung wiederherstellen (Gegenstück zu undo).
+   * Gibt das Label der wiederhergestellten Aktion zurück, oder null, wenn nichts
+   * wiederherzustellen ist.
+   */
+  redo: () => string | null
 
   // ── Weg B: lebende Datendatei ──────────────────────────────────────────────
   /** Aktueller Zustand der Datei-Anbindung. */
@@ -206,6 +214,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Undo-Ringpuffer: vorherige Zustände + Aktionslabel, jüngster zuletzt (LIFO).
   const undoStack = useRef<UndoEntry[]>([])
   const [canUndo, setCanUndo] = useState(false)
+  // Redo-Ringpuffer: per undo zurückgenommene Zustände, jüngster zuletzt. Wird
+  // von jeder echten (undobaren) Mutation gekappt — siehe applyMutation.
+  const redoStack = useRef<UndoEntry[]>([])
+  const [canRedo, setCanRedo] = useState(false)
 
   // ── Weg B: lebende Datei ──────────────────────────────────────────────────
   const [fileStatus, setFileStatus] = useState<FileStatus>(() =>
@@ -282,6 +294,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         stack.push({ snapshot: current, label: opts?.label ?? 'Änderung' })
         if (stack.length > UNDO_LIMIT) stack.shift()
         setCanUndo(true)
+        // Eine neue echte Mutation kappt den Redo-Pfad — sonst entstünden
+        // widersprüchliche Historien (Redo würde in einen abgezweigten Ast
+        // zurückführen). undo/redo selbst umgehen applyMutation und lösen das
+        // daher NICHT aus.
+        if (redoStack.current.length > 0) {
+          redoStack.current = []
+          setCanRedo(false)
+        }
       }
 
       snapshotRef.current = next
@@ -314,6 +334,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // behalten, damit ein zwischenzeitlicher Theme-/Sortierwechsel nicht
     // mit zurückgedreht wird.
     const current = snapshotRef.current
+    // Aktuellen Stand für ein späteres Redo sichern (statt verwerfen). Das Label
+    // der rückgenommenen Aktion wandert mit, damit der Redo-Toast dazu passt.
+    if (current) {
+      redoStack.current.push({ snapshot: current, label: entry.label })
+      if (redoStack.current.length > UNDO_LIMIT) redoStack.current.shift()
+      setCanRedo(true)
+    }
     const restored: Snapshot = current
       ? { ...entry.snapshot, settings: current.settings }
       : entry.snapshot
@@ -321,6 +348,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSnapshot(restored)
     schedulePersist(restored)
     setCanUndo(stack.length > 0)
+    return entry.label
+  }, [schedulePersist])
+
+  // Gegenstück zu undo: holt den zuletzt rückgenommenen Zustand zurück und legt
+  // den aktuellen Stand wieder auf den Undo-Stack. Umgeht — wie undo — bewusst
+  // applyMutation, damit das Zurückschieben den Redo-Pfad nicht kappt.
+  const redo = useCallback((): string | null => {
+    const entry = redoStack.current.pop()
+    if (!entry) return null
+    const current = snapshotRef.current
+    if (current) {
+      undoStack.current.push({ snapshot: current, label: entry.label })
+      if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift()
+      setCanUndo(true)
+    }
+    const restored: Snapshot = current
+      ? { ...entry.snapshot, settings: current.settings }
+      : entry.snapshot
+    snapshotRef.current = restored
+    setSnapshot(restored)
+    schedulePersist(restored)
+    setCanRedo(redoStack.current.length > 0)
     return entry.label
   }, [schedulePersist])
 
@@ -620,6 +669,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         deleteCase,
         canUndo,
         undo,
+        canRedo,
+        redo,
         fileStatus,
         fileName,
         fileError,

@@ -38,6 +38,8 @@ export function AppShell() {
     deleteCase,
     canUndo,
     undo,
+    canRedo,
+    redo,
     fileStatus,
     fileName,
     fileError,
@@ -145,6 +147,15 @@ export function AppShell() {
     if (label) setToast({ text: `Rückgängig: ${label}`, id: Date.now() })
   }, [undo])
 
+  // Wiederherstellen (Gegenstück zu runUndo): selber Pfad für Strg+Y /
+  // Strg+Shift+Z und die Buttons; redo() liefert das Label für den Toast.
+  const runRedo = useCallback(() => {
+    const label = redo()
+    setSelectedIds(new Set())
+    setAnchorId(null)
+    if (label) setToast({ text: `Wiederhergestellt: ${label}`, id: Date.now() })
+  }, [redo])
+
   // Tastatur im Grid-Kontext: Entf löscht die Auswahl, Strg/Cmd+Z macht die
   // letzte Datenänderung rückgängig. Gemeinsame Guards: nicht bei offenem
   // Overlay und nicht während Texteingaben (Input/Textarea/contenteditable).
@@ -204,15 +215,33 @@ export function AppShell() {
         !e.shiftKey &&
         e.key.toLowerCase() === 'z'
       ) {
-        // Strg+Shift+Z (Redo) bewusst ignoriert — kein Redo vorgesehen.
+        // Strg/Cmd+Z → Undo.
         if (!canUndo) return
         e.preventDefault()
         runUndo()
+      } else if (
+        (e.ctrlKey || e.metaKey) &&
+        ((e.shiftKey && e.key.toLowerCase() === 'z') ||
+          (!e.shiftKey && e.key.toLowerCase() === 'y'))
+      ) {
+        // Strg/Cmd+Shift+Z ODER Strg/Cmd+Y → Redo.
+        if (!canRedo) return
+        e.preventDefault()
+        runRedo()
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [overlayOpen, selectedIds, visibleCases, applyMutation, canUndo, runUndo])
+  }, [
+    overlayOpen,
+    selectedIds,
+    visibleCases,
+    applyMutation,
+    canUndo,
+    runUndo,
+    canRedo,
+    runRedo,
+  ])
 
   if (status === 'loading') {
     return <CenterMessage>Lade Daten …</CenterMessage>
@@ -412,6 +441,8 @@ export function AppShell() {
           onSortChange={handleSortChange}
           canUndo={canUndo}
           onUndo={runUndo}
+          canRedo={canRedo}
+          onRedo={runRedo}
           selectedIds={selectedIds}
           onCardSelect={handleCardSelect}
           onCardOpen={openViewer}
@@ -447,6 +478,9 @@ export function AppShell() {
             updateCase(id, { annotations })
           }
           onUndo={runUndo}
+          canUndo={canUndo}
+          onRedo={runRedo}
+          canRedo={canRedo}
           onClose={() => setViewerIndex(null)}
         />
       )}

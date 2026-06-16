@@ -39,6 +39,9 @@ export function Lightbox({
   onDelete,
   onAnnotationsChange,
   onUndo,
+  canUndo,
+  onRedo,
+  canRedo,
   onClose,
 }: {
   cases: Case[]
@@ -52,6 +55,12 @@ export function Lightbox({
   onAnnotationsChange: (id: string, annotations: Annotation[]) => void
   /** Strg/Cmd+Z — auch in der Lightbox aktiv (vor allem fürs Annotieren). */
   onUndo: () => void
+  /** Ob ein Undo-Schritt verfügbar ist (für den Toolbar-Button). */
+  canUndo: boolean
+  /** Strg/Cmd+Y bzw. Strg/Cmd+Shift+Z — Gegenstück zu onUndo. */
+  onRedo: () => void
+  /** Ob ein Redo-Schritt verfügbar ist (für den Toolbar-Button). */
+  canRedo: boolean
   onClose: () => void
 }) {
   const c = cases[index]
@@ -129,20 +138,27 @@ export function Lightbox({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Strg/Cmd+Z: Undo direkt in der Lightbox (auch im Zeichen-Modus) — genau
-      // dort, wo man es beim Annotieren braucht. Nicht in Texteingaben kapern.
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
-        const el = document.activeElement as HTMLElement | null
-        if (
-          el &&
-          (el.tagName === 'INPUT' ||
-            el.tagName === 'TEXTAREA' ||
-            el.isContentEditable)
-        )
+      // Strg/Cmd+Z (Undo) bzw. Strg/Cmd+Shift+Z / Strg/Cmd+Y (Redo) direkt in
+      // der Lightbox (auch im Zeichen-Modus) — genau dort, wo man es beim
+      // Annotieren braucht. Nicht in Texteingaben kapern.
+      if (e.ctrlKey || e.metaKey) {
+        const k = e.key.toLowerCase()
+        const isUndo = !e.shiftKey && k === 'z'
+        const isRedo = (e.shiftKey && k === 'z') || (!e.shiftKey && k === 'y')
+        if (isUndo || isRedo) {
+          const el = document.activeElement as HTMLElement | null
+          if (
+            el &&
+            (el.tagName === 'INPUT' ||
+              el.tagName === 'TEXTAREA' ||
+              el.isContentEditable)
+          )
+            return
+          e.preventDefault()
+          if (isUndo) onUndo()
+          else onRedo()
           return
-        e.preventDefault()
-        onUndo()
-        return
+        }
       }
       if (e.key === 'Escape') {
         // Erst aus dem Zeichen-Modus, dann erst die Lightbox schließen.
@@ -177,6 +193,7 @@ export function Lightbox({
     onClose,
     onIndexChange,
     onUndo,
+    onRedo,
     drawMode,
     selectedAnnId,
     cases,
@@ -478,6 +495,10 @@ export function Lightbox({
             onColorChange={pickColor}
             canDelete={selectedAnnId !== null}
             onDelete={deleteSelected}
+            canUndo={canUndo}
+            onUndo={onUndo}
+            canRedo={canRedo}
+            onRedo={onRedo}
             onExit={() => {
               setDrawMode(false)
               setSelectedAnnId(null)
@@ -572,6 +593,10 @@ function DrawToolbar({
   onColorChange,
   canDelete,
   onDelete,
+  canUndo,
+  onUndo,
+  canRedo,
+  onRedo,
   onExit,
 }: {
   tool: AnnotationTool
@@ -580,6 +605,10 @@ function DrawToolbar({
   onColorChange: (c: AnnotationColor) => void
   canDelete: boolean
   onDelete: () => void
+  canUndo: boolean
+  onUndo: () => void
+  canRedo: boolean
+  onRedo: () => void
   onExit: () => void
 }) {
   const tools: { key: AnnotationTool; label: string; icon: React.ReactNode }[] = [
@@ -624,6 +653,29 @@ function DrawToolbar({
             style={{ background: c.hex }}
           />
         ))}
+      </div>
+      <span className="bg-border h-5 w-px" />
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title={canUndo ? 'Rückgängig (Strg+Z)' : 'Nichts rückgängig zu machen'}
+          aria-label="Rückgängig"
+          className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
+        >
+          <UndoIcon />
+        </button>
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title={canRedo ? 'Wiederherstellen (Strg+Y)' : 'Nichts wiederherzustellen'}
+          aria-label="Wiederherstellen"
+          className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
+        >
+          <RedoIcon />
+        </button>
       </div>
       <span className="bg-border h-5 w-px" />
       <button
@@ -714,6 +766,25 @@ function TrashIcon() {
       <path d="M3 6h18" />
       <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    </svg>
+  )
+}
+
+function UndoIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  // Spiegelbild des UndoIcon (Pfeil nach rechts statt links).
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9a5 5 0 0 0 0 10h1" />
     </svg>
   )
 }

@@ -22,6 +22,8 @@ export function CaseGrid({
   onSortChange,
   canUndo,
   onUndo,
+  canRedo,
+  onRedo,
   selectedIds,
   onCardSelect,
   onCardOpen,
@@ -39,6 +41,8 @@ export function CaseGrid({
   onSortChange: (key: SortKey, dir: SortDir) => void
   canUndo: boolean
   onUndo: () => void
+  canRedo: boolean
+  onRedo: () => void
   selectedIds: Set<string>
   onCardSelect: (id: string, e: React.MouseEvent) => void
   onCardOpen: (id: string) => void
@@ -73,6 +77,21 @@ export function CaseGrid({
           className="bg-surface-2 border-border text-text hover:border-accent inline-flex items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
         >
           <UndoIcon /> Rückgängig
+        </button>
+
+        {/* Wiederherstellen (Strg+Y / Strg+Shift+Z) — inaktiv ohne Redo-Verlauf */}
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title={
+            canRedo
+              ? 'Wiederherstellen (Strg+Y)'
+              : 'Nichts wiederherzustellen'
+          }
+          className="bg-surface-2 border-border text-text hover:border-accent inline-flex items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
+        >
+          <RedoIcon /> Wiederherstellen
         </button>
 
         <div className="mx-1 h-5 w-px bg-[color:var(--color-border)]" />
@@ -237,6 +256,16 @@ function UndoIcon() {
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 14 4 9l5-5" />
       <path d="M4 9h11a5 5 0 0 1 0 10h-1" />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  // Spiegelbild des UndoIcon (Pfeil nach rechts statt links).
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m15 14 5-5-5-5" />
+      <path d="M20 9H9a5 5 0 0 0 0 10h1" />
     </svg>
   )
 }
