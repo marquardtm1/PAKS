@@ -457,9 +457,17 @@ export function Lightbox({
           // Overlay im selben Grid-Feld (place-items-center). Beide skalieren über
           // max-h/max-w auf dieselbe Box (object-contain bzw. intrinsische SVG-
           // Maße) → sie überlagern sich exakt und zoomen/pannen gemeinsam.
+          //
+          // grid-template-rows/-cols: minmax(0,1fr) — KRITISCH für hohe Bilder:
+          // ein auto-Track würde sich an der intrinsischen Bildhöhe bemessen und
+          // max-height ignorieren (zirkulär), das Bild liefe unten aus der Bühne
+          // (overflow-hidden schneidet ab). Der 1fr-Track ist an die definite
+          // Bühnenhöhe gebunden → max-h/max-w-full greifen zusammen, das Bild
+          // passt vollständig hinein, und img wie SVG schrumpfen aspektgetreu auf
+          // dieselbe Box (Overlay bleibt deckungsgleich).
           <div
             data-lb-backdrop
-            className="absolute inset-y-0 inset-x-16 grid place-items-center"
+            className="absolute inset-y-0 inset-x-16 grid [grid-template-columns:minmax(0,1fr)] [grid-template-rows:minmax(0,1fr)] place-items-center"
             onPointerDown={onStagePointerDown}
             onPointerMove={onStagePointerMove}
             onPointerUp={onStagePointerUp}
