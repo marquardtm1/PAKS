@@ -205,6 +205,37 @@ Einfache, ein-/ausblendbare Markierungen **über dem Bild**: **Pfeile** und **Kr
 - **Kachel-Indikator:** dezentes Stift-Badge (oben rechts) bei `annotations?.length` — **zeichnet die Annotationen nicht** aufs Thumbnail.
 - **Offen / später:** Verschieben/Resize bestehender Formen per Anfasser; Aufdecken im Diashow-Drill (sobald die Diashow steht).
 
+### 18. Schnell-Löschen-Button in der Kachel — ❌ OFFEN
+Analog zum **Direkt-Bearbeiten-Button** (#15, Hover-Stift) ein kleiner **Lösch-Button (Mülleimer-Icon)**, direkt **darunter**, zum schnellen Löschen eines Falls **ohne Umweg über die Lightbox**.
+- **Gleiche Kollisionsvermeidung wie der Bearbeiten-Button:** als `role=button`-Span IM Kachel-Button, Klick/Doppelklick/Pointer/Dragstart kapseln (`stopPropagation` + `draggable=false`) → **kein** Auswählen/Lightbox/Drag.
+- **Einblendung:** dezent per Hover (Touch: dauerhaft leicht sichtbar), wie beim Stift.
+- **Versehentliches Löschen vermeiden:** Sicherheits-Rückfrage **oder** direkter **Papierkorb** (siehe #19) — der Papierkorb wäre der elegantere Weg (Löschen ohne Modal, aber reversibel).
+
+### 19. Papierkorb (Soft-Delete) — ❌ OFFEN
+Fälle **nicht sofort endgültig** löschen, sondern erst in einen **Papierkorb** verschieben — **wiederherstellbar**, bis er geleert wird.
+- **Idee:** technisch evtl. als **besonderer Zustand/Flag am Fall** (z. B. `deletedAt?`), **nicht** als sichtbarer Kategorienwert.
+- **Sitzungsende-Verhalten:** entweder **automatisch leeren** oder **behalten** — **konfigurierbar**; plus **manuelles Leeren**.
+- **OFFENE FRAGEN, vor dem Bauen zu klären:**
+  1. **Aus der normalen Ansicht ausblenden** — Papierkorb-Fälle müssen aus **Grid, Suche, Diashow, Trefferzählern und Filtern** raus (sonst „löscht" der Papierkorb nicht, sondern versteckt nur halb). Zentral an der Filter-/Quelldaten-Schicht ansetzen, nicht pro UI-Stelle.
+  2. **Eigene Papierkorb-Ansicht** zum **Wiederherstellen** / **endgültig Löschen**.
+  3. **Verhältnis zum bestehenden Undo (Strg+Z):** Undo macht schon **einzelne** Löschungen rückgängig (Session-Ringpuffer); der Papierkorb wäre die **längerfristige** Variante. Abgrenzung/Zusammenspiel klären.
+  4. **Export/Dual-Write:** gelöschte (Papierkorb-)Fälle **mitspeichern** oder **ausschließen**? Sitzt der Papierkorb als Flag am Fall, **wandert er sonst automatisch in die Datei** — bewusst entscheiden (z. B. beim Schreiben filtern vs. mitschreiben für geräteübergreifenden Papierkorb).
+
+### 20. Weiß als Annotationsfarbe — ❌ OFFEN
+Die Farbauswahl der Bild-Annotationen (#17, aktuell **Rot/Gelb/Grün**) um **Weiß** ergänzen — als **Kontrastfarbe auf dunklen Bildbereichen**, wo Rot/Gelb/Grün schlecht sichtbar sind.
+
+### 21. Schneller Backup-/Download-Button neben dem Speicherstatus — ❌ OFFEN
+Kleiner **Download-Button** (JSON-Backup, **Weg A**) direkt **neben dem Speicher-Status** in der Kopfzeile — für ein schnelles manuelles Backup ohne Umweg über die Einstellungen.
+- **Ausgegraut**, wenn eine **lebende Datei verbunden** ist (Weg B — dort wird ohnehin laufend gesichert); **nur im unverbundenen Zustand aktiv**.
+- Gehört thematisch zu #13 (Sicherungs-Sichtbarkeit).
+
+### 22. Bilder als Dateien aus der JSON exportieren (Tag-gefiltert) — ❌ OFFEN
+Eingebettete Bilder als **einzelne Dateien** (.jpg/.png) herausexportieren — **verlustfrei** (die base64-Data-URLs sind das vollständige Originalbild, reine Decodierung).
+- **Umfang:** gesamter Bestand **oder** gefiltert nach **Tag/Kategorie**.
+- **Format:** als **ZIP** mit sinnvollen Dateinamen (z. B. Falltitel).
+- **Zweck:** macht PAKS zur durchsuchbaren Bildablage für kuratierte Sets (**Paket-/Atlas-Gedanke**).
+- **Offen:** Annotationen optional **einbrennen** oder **nackte Bilder** exportieren; Metadaten (Tags/Notizen) als **Begleit-Textdatei**.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
@@ -278,3 +309,24 @@ Begründung: Das Archiv zieht rein und beweist Wert (löst den akuten Schmerz: b
 ## Optionale Stufe 2 (nicht jetzt)
 
 Falls echtes „Snipping Tool"-Verhalten gewünscht wird (Region direkt auswählen, globaler Hotkey, sofort in App) – das geht NICHT in einer reinen Web-App (Browser-Sicherheit). Dann Umstieg auf **Tauri** (Rust-basiert, leichter als Electron) als Desktop-App. Das ist eine grundlegende Architektur-Entscheidung und kein inkrementelles Feature. Bis dahin deckt Clipboard-Paste (Strg+V) den Bedarf ab, da Nutzer ihre OS-Snipping-Tools ohnehin gewohnt sind.
+
+---
+
+## Ideen / Zukunft (geparkt — kein Code)
+
+Strategische bzw. produktübergreifende Überlegungen, bewusst geparkt — nicht Teil der nummerierten Feature-Prioritäten.
+
+### Marken-/Domain-Dach
+Überlegung, von der produkt-/regionsgebundenen **neurorad-strukturen.ch** auf ein **neutrales Dach** umzustellen, unter dem die Apps als Subdomains hängen (`paks.`, `structures.`, `dd.`). Alternativ: die Apps unter dem **persönlichen Namen-Dach** (`michaelmarquardt.ch`) als Absender/Autorität, wobei die Produkte **eigenständige Domains** behalten und die Personen-Domain auf sie verweist (nicht umgekehrt).
+- **Erkenntnis:** Die persönliche Domain ist im akademisch-medizinischen Kontext **nicht provinziell, sondern autoritativ**; sie ist **kein Verkaufshindernis** (Verkauf = ohnehin Migration).
+- Für den **NeuroRad-Kongress** (Untersetzer-Druck) reicht die etablierte Produkt-URL neurorad-strukturen.ch — die Dach-Entscheidung muss dafür **nicht erzwungen** werden.
+- **Migration** bewusst **einmalig**, wenn das Mehr-Produkte-Dach Form annimmt.
+
+### DD-App als integrierendes Werkzeug auf der Strukturen-Datenbasis
+Nicht eigenständig, sondern eine **zweite Sicht auf dieselbe Datenbasis**: Strukturen geht vom **Verdacht zum Differenzierungsweg** (top-down), die DD-App vom **Merkmal zur Diagnosenliste** (bottom-up). Beide sind Projektionen einer **richtungsneutralen Merkmals-Matrix** (Diagnose × Bildgebungsmerkmal). Da die bestehenden Schemata teils top-down, teils bottom-up vorgehen, **integriert** die DD-App diese heterogenen Sichten.
+- **UI-Konzept:** Seitenleiste + **zweigeteiltes Hauptfenster** (oben Merkmals-Eingabe mit Vorschlagslisten + Freitextsuche, unten die sich fortlaufend **einengende DD-Liste**). Merkmals-Eingabe als **flexibler Korb** (beliebig viele Merkmale, nicht feste Listen).
+- **WICHTIG zum Datenmodell:** nur das **POSITIV Vorliegende** pro Diagnose erfassen (nicht für jede Diagnose jede Kategorie als an/abwesend festlegen). „Merkmal nicht erfasst" ≠ „Merkmal abwesend" — der Filter darf ein fehlendes Merkmal **nicht** als hartes Ausschlusskriterium behandeln, sondern als **Ranking** arbeiten (passende Diagnosen oben, nichts verschwindet wegen Erfassungslücken). **Gezielte Ausnahme:** bei echten **Diskriminatoren** (Merkmale, die zwei ähnliche Diagnosen sicher trennen, z. B. CVS-Zeichen) bewusst eine **Abwesenheits-Aussage** erfassen.
+- **Vorschlagslogik:** oben nur Merkmale anbieten, die bei den **verbleibenden** Diagnosen vorkommen und noch **diskriminieren**.
+- **Datenpflege:** Vokabular/Kategorien legt der **Nutzer** fest (Kernarbeit, Expertise), die **KI** ordnet anhand der vorhandenen Strukturen-Materialien zu (Fleißarbeit) — **nur aus dem festen Vokabular**, mit **Quellenangabe**, vom Nutzer **abgenommen** (Halluzinationsrisiko → Abnahme-Gate).
+- **Startpunkt:** ein Gebiet **hoher Schema-Dichte** als Prototyp, nicht die ganze Neuroradiologie.
+- **Architektur offen:** zweiter Modus in der Strukturen-App vs. eigene App auf gemeinsamer Datenbasis.
