@@ -60,19 +60,28 @@ export function CaseGrid({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 pb-4" onClick={handleBackgroundClick}>
+    <div
+      className="@container flex-1 overflow-y-auto px-5 pb-4"
+      onClick={handleBackgroundClick}
+    >
       {/* Sticky Werkzeugleiste: bleibt beim Scrollen oben stehen. -mx-5 px-5
           lässt den deckenden Hintergrund (bg-bg) + Trennlinie die volle Breite
           füllen, damit durchscrollende Kacheln nicht durchscheinen; py-3 gibt der
           Leiste eigenen Abstand, mb-3 hält die Kacheln darunter frei. */}
       <div
-        className="bg-bg border-border sticky top-0 z-10 -mx-5 mb-3 flex min-h-[55px] items-center gap-2.5 border-b px-5 py-3"
+        className="bg-bg border-border sticky top-0 z-10 -mx-5 mb-3 flex min-h-[55px] flex-nowrap items-center gap-2.5 overflow-hidden border-b px-5 py-3"
         data-toolbar
       >
-        <span className="text-text-muted text-[13px]">
-          {cases.length} {cases.length === 1 ? 'Fall' : 'Fälle'}
+        <span className="text-text-muted shrink-0 text-[13px] whitespace-nowrap">
+          {cases.length}
+          <span className="@max-[420px]:hidden">
+            {' '}
+            {cases.length === 1 ? 'Fall' : 'Fälle'}
+          </span>
           {selectedIds.size > 0 && (
-            <span className="text-accent"> · {selectedIds.size} ausgewählt</span>
+            <span className="text-accent @max-[420px]:hidden">
+              {' '}· {selectedIds.size} ausgewählt
+            </span>
           )}
         </span>
         <div className="flex-1" />
@@ -83,9 +92,10 @@ export function CaseGrid({
           onClick={onUndo}
           disabled={!canUndo}
           title={canUndo ? 'Rückgängig (Strg+Z)' : 'Nichts rückgängig zu machen'}
-          className="bg-surface-2 border-border text-text hover:border-accent inline-flex items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
+          className="bg-surface-2 border-border text-text hover:border-accent inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
         >
-          <UndoIcon /> Rückgängig
+          <UndoIcon />
+          <span className="@max-[560px]:hidden">Rückgängig</span>
         </button>
 
         {/* Wiederherstellen (Strg+Y / Strg+Shift+Z) — inaktiv ohne Redo-Verlauf */}
@@ -98,16 +108,19 @@ export function CaseGrid({
               ? 'Wiederherstellen (Strg+Y)'
               : 'Nichts wiederherzustellen'
           }
-          className="bg-surface-2 border-border text-text hover:border-accent inline-flex items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
+          className="bg-surface-2 border-border text-text hover:border-accent inline-flex shrink-0 items-center gap-1.5 rounded-[var(--radius-card)] border px-2.5 py-1 text-[12px] transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:border-[color:var(--color-border)]"
         >
-          <RedoIcon /> Wiederherstellen
+          <RedoIcon />
+          <span className="@max-[560px]:hidden">Wiederherstellen</span>
         </button>
 
-        <div className="mx-1 h-5 w-px bg-[color:var(--color-border)]" />
+        <div className="mx-1 h-5 w-px shrink-0 bg-[color:var(--color-border)]" />
 
         {/* Sortierung: Schlüssel (Titel/Datum) + Richtung */}
-        <span className="text-text-muted text-xs">Sortieren</span>
-        <div className="flex">
+        <span className="text-text-muted shrink-0 text-xs @max-[480px]:hidden">
+          Sortieren
+        </span>
+        <div className="flex shrink-0">
           <SegButton
             active={sortKey === 'title'}
             onClick={() => onSortChange('title', sortDir)}
@@ -128,14 +141,14 @@ export function CaseGrid({
           onClick={() => onSortChange(sortKey, sortDir === 'asc' ? 'desc' : 'asc')}
           title={sortDir === 'asc' ? 'Aufsteigend' : 'Absteigend'}
           aria-label="Sortierrichtung umschalten"
-          className="bg-surface-2 border-border text-text-muted hover:text-text hover:border-accent inline-flex h-[28px] w-[28px] items-center justify-center rounded-[var(--radius-card)] border text-sm transition-colors"
+          className="bg-surface-2 border-border text-text-muted hover:text-text hover:border-accent inline-flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[var(--radius-card)] border text-sm transition-colors"
         >
           {sortDir === 'asc' ? '↑' : '↓'}
         </button>
 
-        <div className="mx-1 h-5 w-px bg-[color:var(--color-border)]" />
+        <div className="mx-1 h-5 w-px shrink-0 bg-[color:var(--color-border)]" />
 
-        <div className="flex">
+        <div className="flex shrink-0">
           <ViewButton
             active={view === 'grid'}
             onClick={() => onViewChange('grid')}
