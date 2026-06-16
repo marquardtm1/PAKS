@@ -518,6 +518,7 @@ export function AppShell() {
         <BatchImportModal
           tagGroups={snapshot.tagGroups}
           settings={snapshot.settings}
+          updateSettings={updateSettings}
           onImport={handleBatchImport}
           onClose={() => setImportOpen(false)}
         />

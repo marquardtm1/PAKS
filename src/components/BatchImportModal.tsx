@@ -12,6 +12,12 @@ interface BatchItem {
   /** Aus dem Dateinamen abgeleitete Notizen (bei aktivierter Aufteilung). */
   notes: string
   filename: string
+  /** Original-Dateiname (mit Endung) — Quelle fürs erneute Aufteilen, wenn der
+   *  Nutzer die Aufteilungs-Option nach dem Laden ändert. */
+  rawName: string
+  /** Titel vom Nutzer manuell editiert → beim Umschalten der Option nicht
+   *  überschreiben (manuelle Eingabe schlägt Auto-Aufteilung). */
+  edited?: boolean
   image: string
   /** Echtes Datei-Datum (file.lastModified) für die Datums-Sortierung. */
   fileModified?: number
@@ -31,11 +37,14 @@ const inputClass =
 export function BatchImportModal({
   tagGroups,
   settings,
+  updateSettings,
   onImport,
   onClose,
 }: {
   tagGroups: TagGroup[]
   settings: Settings
+  /** Aufteilungs-Wahl persistieren (gemerkt für den nächsten Import). */
+  updateSettings: (patch: Partial<Settings>) => void
   onImport: (cases: NewCaseInput[]) => void
   onClose: () => void
 }) {
@@ -60,6 +69,7 @@ export function BatchImportModal({
           title,
           notes,
           filename: cleanFilename(f.name),
+          rawName: f.name,
           image: await fileToDataUrl(f),
           fileModified: f.lastModified || undefined,
         }
@@ -67,6 +77,20 @@ export function BatchImportModal({
     )
     setItems((prev) => [...prev, ...newItems])
     setBusy(false)
+  }
+
+  // Aufteilungs-Wahl ändern: persistieren (für den nächsten Import gemerkt) UND
+  // bereits geladene, noch NICHT manuell editierte Einträge sofort neu aufteilen,
+  // damit die Vorschau-Kacheln die Wahl widerspiegeln (manuelle Titel bleiben).
+  function changeSplit(enabled: boolean, separator: string) {
+    updateSettings({ filenameSplitEnabled: enabled, filenameSeparator: separator })
+    setItems((prev) =>
+      prev.map((it) =>
+        it.edited
+          ? it
+          : { ...it, ...splitFilename(it.rawName, { enabled, separator }) },
+      ),
+    )
   }
 
   function addGroupValue(groupId: string, value: string) {
@@ -159,6 +183,13 @@ export function BatchImportModal({
           <div className="text-text-muted text-center text-[13px]">Lade Bilder …</div>
         )}
 
+        <FilenameSplitControl
+          enabled={settings.filenameSplitEnabled}
+          separator={settings.filenameSeparator}
+          exampleName={items[0]?.rawName}
+          onChange={changeSplit}
+        />
+
         {ordered.length > 0 && items.length > 0 && (
           <div>
             <span className={labelClass}>Tags für den ganzen Batch (optional)</span>
@@ -205,6 +236,9 @@ export function BatchImportModal({
         )}
 
         {items.length > 0 && (
+          <span className={labelClass}>Vorschau ({items.length}) – Titel editierbar</span>
+        )}
+        {items.length > 0 && (
           <div
             className="grid gap-2"
             style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}
@@ -233,7 +267,9 @@ export function BatchImportModal({
                     value={it.title}
                     onCommit={(v) =>
                       setItems((prev) =>
-                        prev.map((x) => (x.id === it.id ? { ...x, title: v } : x)),
+                        prev.map((x) =>
+                          x.id === it.id ? { ...x, title: v, edited: true } : x,
+                        ),
                       )
                     }
                     className="bg-bg border-border text-text focus:border-accent w-full rounded-[3px] border px-1.5 py-1 text-[12px] outline-none"
@@ -245,5 +281,88 @@ export function BatchImportModal({
         )}
       </div>
     </Modal>
+  )
+}
+
+/**
+ * Sichtbares Steuerelement für die Dateinamen-Aufteilung direkt im Import-Dialog
+ * (statt nur stiller Settings-Schalter): An/Aus + Trennzeichen, plus eine kurze
+ * Live-Vorschau, wie ein Beispiel-Dateiname in Titel + Notiz zerlegt würde. Die
+ * Wahl wird über onChange→updateSettings persistiert (beim nächsten Import
+ * vorausgewählt) und teilt bereits geladene Einträge sofort neu auf.
+ */
+function FilenameSplitControl({
+  enabled,
+  separator,
+  exampleName,
+  onChange,
+}: {
+  enabled: boolean
+  separator: string
+  /** Realer Dateiname aus dem Batch für die Vorschau; sonst generisches Beispiel. */
+  exampleName?: string
+  onChange: (enabled: boolean, separator: string) => void
+}) {
+  const example = exampleName ?? 'CT Schädel - Blutung - axial.png'
+  const preview = splitFilename(example, { enabled, separator })
+  const noteLines = preview.notes ? preview.notes.split('\n') : []
+
+  return (
+    <div className="border-border bg-surface-2 rounded-[var(--radius-card)] border p-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="text-text flex cursor-pointer items-center gap-2 text-[13px]">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => onChange(e.target.checked, separator)}
+          />
+          Dateiname aufteilen (Titel vor dem 1. Trennzeichen, Rest → Notizen)
+        </label>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="batch-fn-sep"
+            className={[
+              'text-text-muted text-[13px] transition-opacity',
+              enabled ? '' : 'opacity-40',
+            ].join(' ')}
+          >
+            Trennzeichen
+          </label>
+          <input
+            id="batch-fn-sep"
+            value={separator}
+            disabled={!enabled}
+            onChange={(e) => onChange(enabled, e.target.value)}
+            className="bg-bg border-border text-text focus:border-accent w-14 rounded-[var(--radius-card)] border px-2 py-1 text-center text-[13px] outline-none transition-colors disabled:opacity-40"
+          />
+        </div>
+      </div>
+
+      {/* Kurze Live-Vorschau am Beispiel-Dateinamen (Titel | Notiz). */}
+      <div className="text-text-muted mt-2.5 text-[12px]">
+        <span className="opacity-70">Beispiel: </span>
+        <span className="font-mono">{example}</span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px]">
+        <span>
+          <span className="text-text-muted text-xs uppercase">Titel:</span>{' '}
+          <span className="text-text">
+            {preview.title || (
+              <span className="text-text-muted italic opacity-60">(leer)</span>
+            )}
+          </span>
+        </span>
+        <span>
+          <span className="text-xs uppercase text-[color:var(--color-note)]">
+            Notiz:
+          </span>{' '}
+          {noteLines.length > 0 ? (
+            <span className="text-note">{noteLines.join(' · ')}</span>
+          ) : (
+            <span className="text-text-muted italic opacity-60">(leer)</span>
+          )}
+        </span>
+      </div>
+    </div>
   )
 }
