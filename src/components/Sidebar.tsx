@@ -155,8 +155,8 @@ export function Sidebar({
       {/* ── Zone 1: Suche (fix oben) ──────────────────────────────────────────
           Suchfeld + Aa nebeneinander; per flex-wrap rutscht das Aa bei sehr
           schmaler Sidebar automatisch in die Zeile darunter. */}
-      <div className="border-border shrink-0 border-b px-3 py-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="border-border flex min-h-[55px] shrink-0 items-center border-b px-3 py-3">
+        <div className="flex w-full flex-wrap items-center gap-2">
           <div className="relative min-w-[140px] flex-1">
             <svg
               className="text-text-muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2"

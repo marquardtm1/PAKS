@@ -66,7 +66,7 @@ export function CaseGrid({
           füllen, damit durchscrollende Kacheln nicht durchscheinen; py-3 gibt der
           Leiste eigenen Abstand, mb-3 hält die Kacheln darunter frei. */}
       <div
-        className="bg-bg border-border sticky top-0 z-10 -mx-5 mb-3 flex items-center gap-2.5 border-b px-5 py-3"
+        className="bg-bg border-border sticky top-0 z-10 -mx-5 mb-3 flex min-h-[55px] items-center gap-2.5 border-b px-5 py-3"
         data-toolbar
       >
         <span className="text-text-muted text-[13px]">
