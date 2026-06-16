@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { Annotation, AnnotationColor, Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
 import {
@@ -12,7 +12,6 @@ import {
   ANNOTATION_COLORS,
   STROKE_WIDTHS,
   DEFAULT_STROKE_PX,
-  annotationAnchor,
   colorHex,
   computeAnnotationIndices,
   hasLabel,
@@ -109,16 +108,11 @@ export function Lightbox({
   const [annWidth, setAnnWidth] = useState<number>(DEFAULT_STROKE_PX)
   // Mehrfachauswahl: IDs der ausgewählten Formen (gemeinsam löschen/umfärben).
   const [selectedAnnIds, setSelectedAnnIds] = useState<string[]>([])
-  // Label-Editor: welche Annotation wird gerade beschriftet (null = kein Editor),
-  // lokaler Entwurf (Commit gebündelt bei Enter/Blur → eine Mutation), und die
-  // Bildschirm-Position des schwebenden Eingabefelds.
+  // Label-Editor: welche Annotation wird gerade INLINE IN DER LISTE beschriftet
+  // (null = kein Editor), plus lokaler Entwurf (Commit gebündelt bei Enter/Blur →
+  // eine Mutation). Kein Bild-Overlay mehr — alle Texteingabe läuft über die Liste.
   const [editingAnnId, setEditingAnnId] = useState<string | null>(null)
   const [labelDraft, setLabelDraft] = useState('')
-  const [labelPos, setLabelPos] = useState<{ x: number; y: number } | null>(null)
-  const labelInputRef = useRef<HTMLInputElement>(null)
-  // Fokus nur beim NEU gezeichneten Label automatisch setzen (beim bloßen
-  // Auswählen erscheint das Feld ohne Fokus, damit Entf weiter die Form löscht).
-  const labelAutoFocusRef = useRef(false)
   // Esc soll verwerfen (nicht committen) — Flag, das der Blur-Commit respektiert.
   const labelCancelRef = useRef(false)
   // Natürliche Bildmaße aus onLoad — die SVG-viewBox braucht sie für die
@@ -153,42 +147,6 @@ export function Lightbox({
     setSelectedAnnIds([])
     setEditingAnnId(null)
   }, [index])
-
-  // Bildschirm-Position des Label-Eingabefelds aus dem Annotation-Anker × der
-  // live gemessenen Bild-Box berechnen (enthält Zoom/Pan). Recompute bei Zoom
-  // (transform), Editor-Wechsel, Bildmaßen und Fenster-Resize. Geklemmt in den
-  // Bildbereich, damit das Feld nie aus dem Bild rutscht.
-  useLayoutEffect(() => {
-    if (!editingAnnId) {
-      setLabelPos(null)
-      return
-    }
-    const measure = () => {
-      const ann = (c?.annotations ?? []).find((a) => a.id === editingAnnId)
-      const img = imgRef.current
-      if (!ann || !img) {
-        setLabelPos(null)
-        return
-      }
-      const r = img.getBoundingClientRect()
-      const anchor = annotationAnchor(ann)
-      setLabelPos({
-        x: clamp(r.left + anchor.x * r.width + 8, r.left + 4, Math.max(r.left + 4, r.right - 4)),
-        y: clamp(r.top + anchor.y * r.height + 8, r.top + 4, Math.max(r.top + 4, r.bottom - 4)),
-      })
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [editingAnnId, transform, c, naturalSize])
-
-  // Neu gezeichnetes Label sofort fokussieren (Auswahl-Label bleibt unfokussiert).
-  useEffect(() => {
-    if (editingAnnId && labelAutoFocusRef.current) {
-      labelAutoFocusRef.current = false
-      requestAnimationFrame(() => labelInputRef.current?.focus())
-    }
-  }, [editingAnnId])
 
   // Natürliche Bildmaße (für die SVG-viewBox) robust pro angezeigtem Bild
   // ermitteln. Wichtig fürs Zurückblättern: ein bereits gecachtes/decodiertes
@@ -347,15 +305,21 @@ export function Lightbox({
   // Index pro beschrifteter Annotation (Form+Farbe-Gruppen) — für Bild-Badge und
   // Liste, identisch per Konstruktion. Günstig (O(n)), daher kein useMemo nötig.
   const annIndices = computeAnnotationIndices(annotations)
-  const labeledAnnotations = annotations.filter(hasLabel)
+  // Zeilen der „Markierungen"-Liste: alle beschrifteten Formen PLUS die gerade
+  // inline editierte UND die im Bild einzeln ausgewählte (auch wenn unbeschriftet
+  // → Platzhalter-Zeile, damit jede Form nachträglich beschriftbar bleibt).
+  const singleSelectedId = selectedAnnIds.length === 1 ? selectedAnnIds[0] : null
+  const listAnnotations = annotations.filter(
+    (a) => hasLabel(a) || a.id === editingAnnId || a.id === singleSelectedId,
+  )
 
-  // Label-Editor öffnen (Annotation auswählen → vorbefüllen, kein Auto-Fokus).
-  const openLabelEditor = (id: string, autoFocus: boolean) => {
+  // Inline-Bearbeitung in der Liste starten (Text-Klick / Neuzeichnen). autoFocus
+  // am Input erledigt das Fokussieren.
+  const startEdit = (id: string) => {
     const ann = annotations.find((a) => a.id === id)
     setEditingAnnId(id)
     setLabelDraft(ann?.label ?? '')
-    labelAutoFocusRef.current = autoFocus
-    labelCancelRef.current = false // frische Sitzung: kein verwaistes Verwerf-Flag
+    labelCancelRef.current = false
   }
   // Lokalen Entwurf als Label persistieren (eine Mutation). Esc verwirft via Flag.
   const commitLabel = () => {
@@ -375,12 +339,28 @@ export function Lightbox({
       ),
     )
   }
+  // Bearbeitung beenden: committen (außer Esc verwarf) und Editor schließen.
+  const finishEdit = () => {
+    commitLabel()
+    setEditingAnnId(null)
+  }
+  const onLabelKeyDown = (e: React.KeyboardEvent) => {
+    // Tasten beim Tippen behalten (kein Blättern/Löschen/Modus-Verlassen global).
+    e.stopPropagation()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      finishEdit()
+    } else if (e.key === 'Escape') {
+      labelCancelRef.current = true // Commit überspringen (verwerfen)
+      finishEdit()
+    }
+  }
 
   const addAnnotation = (a: Annotation) => {
     onAnnotationsChange(c.id, [...annotations, a])
     setSelectedAnnIds([a.id])
-    // Neu gezeichnet → Label-Feld öffnen und fokussieren (direkt lostippen).
-    openLabelEditor(a.id, true)
+    // Neu gezeichnet → erscheint sofort als fokussierte Zeile in der Liste.
+    startEdit(a.id)
   }
   const deleteSelected = () => {
     if (selectedAnnIds.length === 0) return
@@ -396,17 +376,16 @@ export function Lightbox({
     setSelectedAnnIds(annotations.map((a) => a.id))
     setEditingAnnId(null) // Mehrfachauswahl → kein Einzel-Label-Editor
   }
-  // Liste → Bild: Klick auf eine Zeile wählt die Annotation im Bild aus. Ist der
-  // Zeichen-Modus aus, wird er aktiviert (mit Auswahl/Bewegen), da Auswahl/
-  // Bearbeitung dort stattfindet. Label-Editor erscheint (ohne Fokus, wie Form-Klick).
-  const selectFromList = (id: string) => {
+  // Liste → Bild (Form-Symbol-Klick): Form im Bild nur HERVORHEBEN, kein Editor.
+  // Aktiviert ggf. den Zeichen-Modus, damit man sie dort bearbeiten/löschen/
+  // umfärben kann.
+  const highlightFromList = (id: string) => {
     if (!drawMode) {
       setDrawMode(true)
       setTool('select')
       setAnnotationsVisible(true)
     }
     setSelectedAnnIds([id])
-    openLabelEditor(id, false)
   }
   // Farbklick: ausgewählte Form(en) umfärben (sonst nur Farbe fürs nächste Zeichnen).
   const pickColor = (color: AnnotationColor) => {
@@ -661,13 +640,7 @@ export function Lightbox({
                 strokeWidth={annWidth}
                 selectedIds={selectedAnnIds}
                 indices={annIndices}
-                onSelect={(id) => {
-                  setSelectedAnnIds(id ? [id] : [])
-                  // Einzelne Form anklicken → Label-Feld zeigen (ohne Fokus, damit
-                  // Entf weiter löscht). Hintergrund/null → Editor schließen.
-                  if (id) openLabelEditor(id, false)
-                  else setEditingAnnId(null)
-                }}
+                onSelect={(id) => setSelectedAnnIds(id ? [id] : [])}
                 onCreate={addAnnotation}
               />
             )}
@@ -714,31 +687,8 @@ export function Lightbox({
         )}
       </div>
 
-      {/* Schwebendes Label-Eingabefeld im Screen-Space (nicht im transformierten
-          Wrapper → bei jedem Zoom konstant lesbar). Position folgt der Annotation
-          über labelPos. Eingabe optional; leer = unbeschriftet. */}
-      {drawMode && isImageCase && editingAnnId && labelPos && (
-        <input
-          ref={labelInputRef}
-          value={labelDraft}
-          onChange={(e) => setLabelDraft(e.target.value)}
-          onBlur={commitLabel}
-          onKeyDown={(e) => {
-            // Eigene Tasten behalten (kein Blättern/Löschen/Modus-Verlassen global).
-            e.stopPropagation()
-            if (e.key === 'Enter') {
-              commitLabel()
-              setEditingAnnId(null)
-            } else if (e.key === 'Escape') {
-              labelCancelRef.current = true // Blur-Commit überspringen (verwerfen)
-              setEditingAnnId(null)
-            }
-          }}
-          placeholder="Beschriftung … (optional)"
-          className="bg-surface/95 border-border text-text focus:border-accent fixed z-[60] w-52 rounded-[var(--radius-card)] border px-2.5 py-1.5 text-[13px] shadow-lg outline-none backdrop-blur"
-          style={{ left: labelPos.x, top: labelPos.y }}
-        />
-      )}
+      {/* (Keine Bild-Eingabefelder mehr — alle Texteingabe läuft über die
+          „Markierungen"-Liste unten.) */}
 
       {/* Video-Zugang nur für REFERENZIERTE Fälle: Pfad + Abspielen/Kopieren.
           Eingebettete Videos laufen oben im Player — kein Pfad-Zugang nötig. */}
@@ -751,7 +701,7 @@ export function Lightbox({
       {/* Fußbereich: Kategorie-Chips, Notizfeld, darunter die „Markierungen"-Liste */}
       {(chips.length > 0 ||
         ((c.image || isEmbeddedVideo(c)) && hasNotes) ||
-        (isImageCase && labeledAnnotations.length > 0)) && (
+        (isImageCase && listAnnotations.length > 0)) && (
         <div className="mx-auto w-full max-w-[1000px] shrink-0 px-5 pb-4">
           {chips.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-1.5 py-3">
@@ -785,38 +735,68 @@ export function Lightbox({
             </div>
           )}
 
-          {/* „Markierungen": eine Zeile je BESCHRIFTETER Annotation — Form-Symbol
-              + optionaler Index + Label, alles in der Annotationsfarbe. Index nur,
-              wenn indiziert (≥ 2 gleiche Form+Farbe), passend zum Bild-Badge. */}
-          {isImageCase && labeledAnnotations.length > 0 && (
+          {/* „Markierungen": eine Zeile je beschrifteter (+ gerade editierter/
+              ausgewählter) Annotation. Zwei Klick-Ziele: Form-Symbol → im Bild
+              hervorheben (kein Eingabefeld); Text → inline in der Liste editieren.
+              Index nur, wenn indiziert (≥ 2 gleiche Form+Farbe), wie das Bild-Badge. */}
+          {isImageCase && listAnnotations.length > 0 && (
             <div className="border-border/50 border-t">
               <div className="text-text-muted flex items-center gap-2 py-2.5 text-[13px] font-semibold tracking-[0.04em] uppercase">
                 ✏️ Markierungen
               </div>
               <ul className="max-h-[24vh] space-y-1 overflow-y-auto pb-3" data-scrollable>
-                {labeledAnnotations.map((a) => {
+                {listAnnotations.map((a) => {
                   const n = annIndices.get(a.id)
                   const isSelected = selectedAnnIds.includes(a.id)
+                  const hex = colorHex(a.color)
                   return (
-                    <li key={a.id}>
+                    <li
+                      key={a.id}
+                      className={[
+                        'flex items-center gap-1.5 rounded px-1 py-0.5 transition-colors',
+                        isSelected ? 'bg-surface-2' : '',
+                      ].join(' ')}
+                    >
+                      {/* Form-Symbol (+ Index): nur im Bild hervorheben. */}
                       <button
                         type="button"
-                        onClick={() => selectFromList(a.id)}
-                        title="Im Bild auswählen"
-                        className={[
-                          'flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[15px] leading-snug transition-colors',
-                          isSelected ? 'bg-surface-2' : 'hover:bg-surface-2/60',
-                        ].join(' ')}
-                        style={{ color: colorHex(a.color) }}
+                        onClick={() => highlightFromList(a.id)}
+                        title="Im Bild hervorheben"
+                        className="hover:bg-surface-2/60 inline-flex shrink-0 items-center gap-1 rounded px-1 py-0.5 transition-colors"
+                        style={{ color: hex }}
                       >
-                        <span className="inline-flex shrink-0 items-center gap-1">
-                          <AnnShapeIcon type={a.type} />
-                          {typeof n === 'number' && (
-                            <span className="text-[12px] font-bold tabular-nums">{n}</span>
-                          )}
-                        </span>
-                        <span className="break-words">{a.label}</span>
+                        <AnnShapeIcon type={a.type} />
+                        {typeof n === 'number' && (
+                          <span className="text-[12px] font-bold tabular-nums">{n}</span>
+                        )}
                       </button>
+                      {/* Text: inline editierbar (Klick startet die Bearbeitung). */}
+                      {editingAnnId === a.id ? (
+                        <input
+                          autoFocus
+                          value={labelDraft}
+                          onChange={(e) => setLabelDraft(e.target.value)}
+                          onBlur={finishEdit}
+                          onKeyDown={onLabelKeyDown}
+                          placeholder="Beschriftung … (optional)"
+                          className="bg-bg border-border focus:border-accent min-w-0 flex-1 rounded border px-2 py-1 text-[14px] outline-none"
+                          style={{ color: hex }}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(a.id)}
+                          title="Beschriftung bearbeiten"
+                          className="hover:bg-surface-2/60 min-w-0 flex-1 truncate rounded px-1 py-1 text-left text-[15px] leading-snug transition-colors"
+                          style={{ color: hex }}
+                        >
+                          {a.label ? (
+                            a.label
+                          ) : (
+                            <span className="text-text-muted italic">Beschriftung …</span>
+                          )}
+                        </button>
+                      )}
                     </li>
                   )
                 })}
