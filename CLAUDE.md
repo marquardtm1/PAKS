@@ -268,6 +268,18 @@ Die volle Werkzeugleiste (alle Werkzeuge/Farben/Stärken inline) auf drei **aufk
 - **Direkt** (kein Aufklapp-Schritt): Alle markieren · Undo · Redo · Löschen · Schließen.
 - Bedien-Hinweiszeile entfernt (Bedienung intuitiv genug).
 
+### 30. Start-Dialog ohne verbundene Datei (Onboarding / Datenverlust-Warnung, inkl. Disclaimer-Merge) — ✅ ERLEDIGT
+Beim App-Start ohne lebende Datei (Weg B) ein abgestufter Dialog (`StartupStorageDialog`), der die bestehenden Funktionen nutzt (`connectNewFile`/`openExistingFile`, `downloadSnapshot`) — kein neuer Pfad.
+- **Erststart (kombiniert):** Datenschutzhinweis (⚠️ „Nur anonymisierte Bilder …") **und** Willkommens-/Sicherungs-Teil in EINEM Dialog — statt früher Banner, dann Dialog (das Banner wurde reflexhaft weggeklickt, der Sicherungsteil nie gesehen). Bewusste Quittierung: **Esc/Hintergrund schließen NICHT** (`Modal dismissable={false}`, kein ×); jede Aktion (Verbinden/Export/„Verstanden – später") setzt `disclaimerAccepted`. `disclaimerAccepted` steuert nun den Dialog-INHALT, kein separates `DisclaimerBanner` mehr (gelöscht).
+- **Fall A (Willkommen):** Disclaimer bereits akzeptiert, kein eigener Bestand (nur Demo-Seed) → freundliches Onboarding ohne Disclaimer-Block, „Datei verbinden" oder „Später / nur im Browser", dauerhaft ausblendbar (`settings.startupNoticeDismissed`), leicht wegklickbar.
+- **Fall B (Warnung):** echte Fälle nur im flüchtigen IndexedDB → deutliche Warnung „Deine N Fälle nur im Browser …" mit Verbinden / Jetzt exportieren / Schließen; **kein** dauerhaftes Abschalten (nur pro Sitzung).
+- **Datenlage-Erkennung:** Demo-Fälle haben stabile `DEMO_CASE_IDS`; `hasOwnData(cases)` = mind. ein Nicht-Demo-Fall. Demo-only/leer → Fall A, sonst Fall B.
+- **Disjunkt per `fileStatus`:** erscheint nur bei `'none'`/`'unsupported'` — bei `'connected'` alles gesichert, bei `'needs-reconnect'`/`'error'` besitzt das Reconnect-Band die Aktion (keine Doppelung). Unsupported (Firefox/Safari): Verbinden ausgeblendet, Export als Primärweg.
+- **Lückenlosigkeit:** `!disclaimerAccepted` ⇒ allererster Start ⇒ keine gemerkte Datei ⇒ `fileStatus 'none'/'unsupported'` ⇒ der kombinierte Dialog erscheint garantiert (der Disclaimer wird also immer gezeigt).
+- **Timing:** neues `fileRestoreSettled`-Flag im Store (gesetzt am Ende des Start-Reconnect-Versuchs in allen Zweigen) verhindert Aufblitzen; Einmal-Bewertung pro App-Start; Auto-Schließen sobald `fileStatus === 'connected'`.
+- **Bugfix dabei:** im Start-Reconnect-Effekt das `active`-Cleanup-Flag entfernt — unter `<StrictMode>` (dev) verhinderte dessen Cleanup zusammen mit dem `fileRestoreAttempted`-Ref, dass `setFileRestoreSettled(true)` lief → Dialog erschien nie. Einmaligkeit garantiert nun allein der Ref (überlebt das StrictMode-Remount); der Root-Provider unmountet ohnehin nicht.
+- **`Modal`:** neues `dismissable`-Prop (false → kein ×, kein Esc-/Hintergrund-Schließen) für den Erststart-Dialog.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).

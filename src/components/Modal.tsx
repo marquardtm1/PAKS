@@ -11,26 +11,34 @@ export function Modal({
   children,
   footer,
   maxWidth = 540,
+  dismissable = true,
 }: {
   title: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
   maxWidth?: number
+  /**
+   * Wenn false: Esc und Hintergrundklick schließen NICHT, und der ×-Knopf fehlt
+   * — Schließen nur über die explizit angebotenen Aktionsknöpfe. Für den
+   * Erststart-Dialog (Datenschutz muss bewusst quittiert werden).
+   */
+  dismissable?: boolean
 }) {
   useEffect(() => {
+    if (!dismissable) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [onClose, dismissable])
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-5"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (dismissable && e.target === e.currentTarget) onClose()
       }}
     >
       <div
@@ -39,14 +47,16 @@ export function Modal({
       >
         <div className="border-border flex items-center justify-between border-b px-5 py-4">
           <h2 className="text-[15px] font-semibold">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Schließen"
-            className="text-text-muted hover:text-text px-1.5 text-xl leading-none"
-          >
-            ×
-          </button>
+          {dismissable && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Schließen"
+              className="text-text-muted hover:text-text px-1.5 text-xl leading-none"
+            >
+              ×
+            </button>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">{children}</div>
         {footer && (

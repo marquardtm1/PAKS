@@ -8,11 +8,13 @@ import { setCaseDragData } from '@/lib/dnd'
 import type { Case, SortDir, SortKey } from '@/lib/types'
 import { Header } from './Header'
 import { FileReconnectBanner } from './FileReconnectBanner'
+import { StartupStorageDialog } from './StartupStorageDialog'
 import { ConflictDialog } from './ConflictDialog'
+// Hinweis: Der Datenschutz-Erststart-Hinweis ist jetzt in den StartupStorageDialog
+// gefaltet (ein kombinierter Dialog), kein separates Banner mehr.
 import { Sidebar } from './Sidebar'
 import { ResizableSidebar } from './ResizableSidebar'
 import { CaseGrid, type ViewMode } from './CaseGrid'
-import { DisclaimerBanner } from './DisclaimerBanner'
 import { CaseFormModal, type NewCaseInput } from './CaseFormModal'
 import { Lightbox } from './Lightbox'
 import { Slideshow } from './Slideshow'
@@ -32,7 +34,6 @@ export function AppShell() {
     snapshot,
     applyMutation,
     updateSettings,
-    acceptDisclaimer,
     addCase,
     updateCase,
     deleteCase,
@@ -391,9 +392,6 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col">
       <Header />
-      {!snapshot.settings.disclaimerAccepted && (
-        <DisclaimerBanner onAccept={acceptDisclaimer} />
-      )}
       <FileReconnectBanner
         status={fileStatus}
         fileName={fileName}
@@ -536,6 +534,10 @@ export function AppShell() {
       {conflict && (
         <ConflictDialog conflict={conflict} onResolve={resolveConflict} />
       )}
+
+      {/* Start-Dialog (Weg B nicht verbunden): Willkommen (frisch) bzw. Warnung
+          (echte Daten nur im Browser). Entscheidet/zeigt sich selbst. */}
+      <StartupStorageDialog />
 
       {slideshowCases && (
         <Slideshow

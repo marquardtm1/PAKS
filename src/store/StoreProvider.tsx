@@ -169,6 +169,13 @@ interface StoreValue {
   disconnectFile: () => Promise<void>
   /** Live-Status des Datei-Schreibens (für den Indikator in der Kopfzeile). */
   fileSaveState: FileSaveState
+  /**
+   * true, sobald der Start-Wiederverbindungsversuch abgeschlossen ist (in allen
+   * Zweigen: keine gemerkte Datei, wieder verbunden, oder needs-reconnect). Erst
+   * dann ist fileStatus verlässlich — der Start-Dialog wartet darauf, um nicht
+   * aufzublitzen, bevor ein gespeicherter Handle auflöst.
+   */
+  fileRestoreSettled: boolean
   /** Offener Konflikt beim Verbinden (null = keiner) → Konflikt-Dialog. */
   conflict: FileConflict | null
   /** Entscheidung im Konflikt-Dialog zurückmelden. */
@@ -226,6 +233,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [fileSaveState, setFileSaveState] = useState<FileSaveState>('idle')
+  // Start-Wiederverbindung abgeschlossen? Gate gegen Aufblitzen des Start-Dialogs.
+  const [fileRestoreSettled, setFileRestoreSettled] = useState(false)
   // Offener Konflikt-Dialog + Resolver, der die Nutzerauswahl an den wartenden
   // Verbindungs-Ablauf zurückgibt (Brücke async-Logik ↔ React-Modal).
   const [conflict, setConflict] = useState<FileConflict | null>(null)
@@ -567,14 +576,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status !== 'ready' || fileRestoreAttempted.current) return
     fileRestoreAttempted.current = true
-    if (!supportsFileSystemAccess()) return
-    let active = true
+    if (!supportsFileSystemAccess()) {
+      // Kein Weg B → nichts wiederherzustellen; Status ist sofort verlässlich.
+      setFileRestoreSettled(true)
+      return
+    }
+    // Einmal-Garantie liegt allein bei fileRestoreAttempted (Ref überlebt das
+    // simulierte StrictMode-Remount). KEIN active-Cleanup-Flag: unter StrictMode
+    // würde dessen Cleanup `active=false` setzen, der zweite Lauf via Ref früh
+    // zurückkehren — und das `finally` des einzigen echten Laufs übersprang dann
+    // setFileRestoreSettled(true), sodass der Start-Dialog nie freigeschaltet
+    // wurde. StoreProvider ist ein dauerhafter Root und unmountet nicht mitten in
+    // der Sitzung, daher ist der Guard unnötig.
     void (async () => {
       try {
         const handle = await loadHandle()
-        if (!handle || !active) return
+        if (!handle) return
         const permission = await ensureReadwritePermission(handle, false)
-        if (!active) return
         if (permission === 'granted') {
           await activateHandle(handle)
         } else {
@@ -582,15 +600,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setFileStatus('needs-reconnect')
         }
       } catch (e) {
-        if (active) {
-          setFileError(errorMessage(e))
-          setFileStatus('error')
-        }
+        setFileError(errorMessage(e))
+        setFileStatus('error')
+      } finally {
+        // In jedem Zweig (keine Datei / verbunden / needs-reconnect / Fehler) ist
+        // der Startversuch jetzt abgeschlossen → Start-Dialog darf entscheiden.
+        setFileRestoreSettled(true)
       }
     })()
-    return () => {
-      active = false
-    }
   }, [status, activateHandle])
 
   const acceptDisclaimer = useCallback(() => {
@@ -679,6 +696,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reconnectFile,
         disconnectFile,
         fileSaveState,
+        fileRestoreSettled,
         conflict,
         resolveConflict,
       }}

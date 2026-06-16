@@ -137,6 +137,13 @@ export type SlideshowOrder = 'grid' | 'shuffle'
 export interface Settings {
   /** Datenschutz-/USB-Warnhinweis vom Nutzer bestätigt. */
   disclaimerAccepted: boolean
+  /**
+   * Willkommens-/Onboarding-Dialog (Fall A, frischer Browser ohne lebende Datei)
+   * dauerhaft ausgeblendet. Betrifft NUR den freundlichen Willkommens-Dialog —
+   * die deutlichere Warnung bei echten Daten ohne Datei (Fall B) ist bewusst
+   * NICHT dauerhaft abschaltbar, damit niemand sie versehentlich verliert.
+   */
+  startupNoticeDismissed: boolean
   /** Farbschema. Dark ist Default. */
   theme: Theme
   /** Breite der Seitenleiste in px (per Drag verstellbar). */
