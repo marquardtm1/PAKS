@@ -354,10 +354,13 @@ export function Lightbox({
 
   return (
     <div ref={rootRef} className="fixed inset-0 z-50 flex flex-col bg-black/95">
-      {/* Kopfzeile: zentrierter Titel, Aktionen rechts (linker Spacer balanciert
-          die Zentrierung aus, damit der Titel wirklich mittig sitzt). */}
-      <div className="flex shrink-0 items-center gap-3 px-5 py-3.5">
-        <div className="flex flex-1 items-center gap-2">
+      {/* Kopfzeile: zentrierter Titel im Fluss, die beiden Aktions-Gruppen ABSOLUT
+          mit konstantem Abstand vom oberen Rand verankert. So bleiben die Buttons
+          beim Blättern an fester Position, auch wenn der Titel pro Fall mehr/
+          weniger Zeilen umbricht (sonst zentriert items-center sie mit der
+          Titelhöhe neu → sie springen). */}
+      <div className="relative shrink-0 px-5 py-3.5">
+        <div className="absolute top-3.5 left-5 flex items-center gap-2">
           {isImageCase && hasAnnotations && (
             <HeaderToggle
               active={annotationsVisible}
@@ -387,10 +390,10 @@ export function Lightbox({
             </HeaderToggle>
           )}
         </div>
-        <h2 className="max-w-[55%] text-center text-lg font-semibold break-words whitespace-normal text-white">
+        <h2 className="mx-auto max-w-[55%] text-center text-lg font-semibold break-words whitespace-normal text-white">
           {c.title || '(ohne Titel)'}
         </h2>
-        <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="absolute top-3.5 right-5 flex items-center gap-3">
           <span className="text-text-muted shrink-0 text-xs tabular-nums">
             {index + 1} / {cases.length}
           </span>
