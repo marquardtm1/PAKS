@@ -205,11 +205,11 @@ Einfache, ein-/ausblendbare Markierungen **über dem Bild**: **Pfeile** und **Kr
 - **Kachel-Indikator:** dezentes Stift-Badge (oben rechts) bei `annotations?.length` — **zeichnet die Annotationen nicht** aufs Thumbnail.
 - **Offen / später:** Verschieben/Resize bestehender Formen per Anfasser; Aufdecken im Diashow-Drill (sobald die Diashow steht).
 
-### 18. Schnell-Löschen-Button in der Kachel — ❌ OFFEN
-Analog zum **Direkt-Bearbeiten-Button** (#15, Hover-Stift) ein kleiner **Lösch-Button (Mülleimer-Icon)**, direkt **darunter**, zum schnellen Löschen eines Falls **ohne Umweg über die Lightbox**.
+### 18. Schnell-Löschen-Button in der Kachel — ✅ ERLEDIGT
+Analog zum **Direkt-Bearbeiten-Button** (#15, Hover-Stift) ein kleiner **Lösch-Button (Mülleimer-Icon)** (`DeleteButton` in `CaseCard.tsx`), direkt **darunter**, zum schnellen Löschen eines Falls **ohne Umweg über die Lightbox**.
 - **Gleiche Kollisionsvermeidung wie der Bearbeiten-Button:** als `role=button`-Span IM Kachel-Button, Klick/Doppelklick/Pointer/Dragstart kapseln (`stopPropagation` + `draggable=false`) → **kein** Auswählen/Lightbox/Drag.
 - **Einblendung:** dezent per Hover (Touch: dauerhaft leicht sichtbar), wie beim Stift.
-- **Versehentliches Löschen vermeiden:** Sicherheits-Rückfrage **oder** direkter **Papierkorb** (siehe #19) — der Papierkorb wäre der elegantere Weg (Löschen ohne Modal, aber reversibel).
+- **Versehentliches Löschen vermeiden:** **Sicherheits-Rückfrage** (`window.confirm`) vor dem Löschen — zusammen mit Undo/Redo ist ein Papierkorb (#19) nicht zwingend nötig. Verdrahtet `CaseCard` → `CaseGrid` (`onCardDelete`) → AppShell (`deleteCase`, undo-/redo-fähig).
 
 ### 19. Papierkorb (Soft-Delete) — ❌ OFFEN
 Fälle **nicht sofort endgültig** löschen, sondern erst in einen **Papierkorb** verschieben — **wiederherstellbar**, bis er geleert wird.
@@ -240,8 +240,12 @@ Eingebettete Bilder als **einzelne Dateien** (.jpg/.png) herausexportieren — *
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
 - **Grid-Bedienung:** Sortierung (Titel/Datum, auf/ab, persistiert) · Mehrfachauswahl (Klick / Strg / Shift) · Löschen per Entf (mit Anzahl-Rückfrage) · Drag&Drop-Tagging inkl. Mehrfachauswahl.
-- **Undo** (Strg+Z + Toolbar-Button): Session-Ringpuffer am `applyMutation`-Pfad, mit Toast-Rückmeldung („Rückgängig: …").
+- **Undo/Redo** (Strg+Z bzw. Strg+Y / Strg+Shift+Z, Toolbar-Buttons + Buttons in der Lightbox-Zeichenleiste): Session-Ringpuffer am `applyMutation`-Pfad. Redo ist das Spiegelbild von Undo; beide umgehen `applyMutation`, sodass nur echte Mutationen den Redo-Stack kappen (keine widersprüchlichen Historien). Toast-Rückmeldung („Rückgängig: …" / „Wiederhergestellt: …").
 - **Suche:** Groß-/Kleinschreibung-Umschalter (persistiert), Clear-✕ im Feld, Esc leert.
+- **Lightbox-Politur:** Klick auf den leeren Hintergrund neben dem Bild schließt (echter Leerklick, kein Drag-Ende/Inhalts-Klick, nicht im Zeichen-Modus) · Kopfzeilen-Buttons absolut verankert (springen beim Blättern nicht mehr) · sehr hohe Bilder passen vollständig in die Bühne (minmax(0,1fr)-Grid, Overlay bleibt deckungsgleich) · Undo-Button in der Zeichenleiste.
+- **Konstante Grid-Kachelhöhe:** unabhängig vom Bild-Seitenverhältnis (Bild absolut im `aspect-square`-Rahmen, `object-cover`) UND von Tag-Anzahl/-Länge (feste einzeilige Tag-Zone mit gemessenem „+N" und Ellipsis); „Notiz vorhanden" als Eck-Badge statt variabler Body-Zeile. Listen-Modus: horizontale Zeile mit festem 96px-Thumbnail.
+- **Hauptbereich-Werkzeugleiste:** oben **sticky** (deckender Hintergrund, scrollende Kacheln scheinen nicht durch) · auf gleiche Höhe/Mitte wie der Sidebar-Kopf ausgerichtet · **einzeilig & container-responsive** (progressive Reduktion: Undo/Redo→Icon, „Sortieren"-Label weg, Fälle-Anzeige nur Zahl), konstante Höhe über alle Breiten.
+- **Import-Dialog:** Dateinamen-Aufteilung (Titel/Notizen) als **sichtbare** Option mit Trennzeichen + Live-Vorschau (Titel | Notiz); Wahl persistiert, teilt geladene (nicht manuell editierte) Einträge sofort neu auf (Teil von #2).
 - **Tooling/Qualität:** ESLint (`rules-of-hooks`) + Typecheck als `lint`-Script, im Build vorgeschaltet und als Pre-Commit-Hook (Husky) — nur lauffähige Stände sind committbar.
 
 ### Nächste Schritte (Stand 2026-06-12)
