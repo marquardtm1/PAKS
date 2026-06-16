@@ -696,8 +696,13 @@ function DrawToolbar({
             aria-pressed={color === c.key}
             onClick={() => onColorChange(c.key)}
             className={[
-              'h-6 w-6 rounded-full border-2 transition-transform',
-              color === c.key ? 'scale-110 border-white' : 'border-transparent hover:scale-105',
+              // Konstanter dezenter Rand grenzt auch helle Farben (Weiß) ab; der
+              // aktive Zustand ist ein Akzent-Ring mit Offset — sichtbar auf jeder
+              // Füllfarbe inkl. Weiß (ein weißer Rand verschwände auf Weiß).
+              'h-6 w-6 rounded-full border border-border transition-transform',
+              color === c.key
+                ? 'scale-110 ring-2 ring-accent ring-offset-2 ring-offset-[color:var(--color-surface)]'
+                : 'hover:scale-105',
             ].join(' ')}
             style={{ background: c.hex }}
           />

@@ -17,6 +17,7 @@ export const ANNOTATION_COLORS: {
   { key: 'red', hex: '#ef4444', label: 'Rot' },
   { key: 'yellow', hex: '#eab308', label: 'Gelb' },
   { key: 'green', hex: '#22c55e', label: 'Grün' },
+  { key: 'white', hex: '#ffffff', label: 'Weiß' },
 ]
 
 /** Hex-Wert einer Annotations-Farbe (Fallback Rot). */

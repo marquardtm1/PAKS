@@ -74,8 +74,10 @@ export interface Case {
   annotations?: Annotation[]
 }
 
-/** Feste Annotations-Farben (für unterschiedliche Bildkontraste). */
-export type AnnotationColor = 'red' | 'yellow' | 'green'
+/** Feste Annotations-Farben (für unterschiedliche Bildkontraste). 'white' als
+ *  Kontrastfarbe auf dunklen Bildbereichen. Additiv — bestehende Annotationen
+ *  bleiben gültig. */
+export type AnnotationColor = 'red' | 'yellow' | 'green' | 'white'
 
 interface AnnotationBase {
   id: string
