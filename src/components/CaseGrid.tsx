@@ -28,6 +28,7 @@ export function CaseGrid({
   onCardSelect,
   onCardOpen,
   onCardEdit,
+  onCardDelete,
   onCardDragStart,
   onClearSelection,
 }: {
@@ -47,6 +48,7 @@ export function CaseGrid({
   onCardSelect: (id: string, e: React.MouseEvent) => void
   onCardOpen: (id: string) => void
   onCardEdit: (id: string) => void
+  onCardDelete: (id: string) => void
   onCardDragStart: (id: string, e: React.DragEvent) => void
   onClearSelection: () => void
 }) {
@@ -167,6 +169,7 @@ export function CaseGrid({
               onSelect={onCardSelect}
               onOpen={onCardOpen}
               onEdit={onCardEdit}
+              onDelete={onCardDelete}
               onDragStart={onCardDragStart}
             />
           ))}

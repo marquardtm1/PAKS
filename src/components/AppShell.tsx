@@ -450,6 +450,7 @@ export function AppShell() {
             const found = snapshot.cases.find((x) => x.id === id)
             if (found) setEditCase(found)
           }}
+          onCardDelete={deleteCase}
           onCardDragStart={handleCardDragStart}
           onClearSelection={clearSelection}
         />
