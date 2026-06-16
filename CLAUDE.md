@@ -248,6 +248,14 @@ Annotations-Auswahl von Einzel- auf **Mehrfachauswahl** umgestellt (`selectedAnn
 ### 26. Dateiname im Speicherstatus-Tooltip — ✅ ERLEDIGT
 `FileSaveIndicator` zeigt beim Hover die **konkrete lebende Datei** („Lebende Datendatei: \<name>"). Hinweis im Tooltip, dass die File System Access API browser-bedingt **nur den Dateinamen, nicht den vollständigen Pfad** preisgibt (damit der Name nicht als unvollständig missverstanden wird). Teil des Speicher-Kontrollbereichs (#13).
 
+### 27. Annotationen mit Text-Labels (+ Bild↔Listen-Indizierung) — ✅ ERLEDIGT
+Annotationen (#17) können einen **optionalen Beschriftungstext** bekommen, der geordnet im neuen Bereich „Markierungen" **unter den Notizen** erscheint.
+- **Datenmodell:** additives optionales `label?` an `AnnotationBase` (leer = unbeschriftet; keine Schema-Migration, fließt durch Dual-Write/Export).
+- **Eingabe:** schwebendes Text-Eingabefeld im **Screen-Space** (nicht im transformierten Wrapper → bei jedem Zoom lesbar konstant), Position aus `annotationAnchor` × live gemessener Bild-Box (`useLayoutEffect`, folgt Zoom, in den Bildbereich geklemmt). **Neu gezeichnet** → Feld mit Fokus (direkt lostippen); **vorhandene Form angeklickt** → Feld ohne Fokus (so löscht Entf weiter die Form). Commit gebündelt bei **Enter/Blur** (eine `updateCase`-Mutation → Undo bündelt; nicht pro Tastendruck), **Esc verwirft**.
+- **Indizierung (`computeAnnotationIndices`):** nur **beschriftete** Annotationen, gruppiert nach **Form+Farbe** (`type:color`) in Erstellreihenfolge — Kombination einmalig → **kein Index**; ab zwei → fortlaufend `1,2,3 …`. Eine `id→Nummer`-Map → **konsistent in Bild und Liste**, dynamisch (Löschen renummeriert).
+- **Bild-Badge (`IndexBadge`):** kleine Nummern-Scheibe in Annotationsfarbe + Kontrastziffer, **nur wenn indiziert** (ab der 2. gleichen Form+Farbe); beschriftet-aber-einzeln/unbeschriftet bleibt im Bild nackt. **Bildschirm-konstant** über die `swUser`-px-Umrechnung (#24).
+- **Liste:** je beschrifteter Annotation `[Form-Symbol]` + optionaler Index + Label, alles in der Annotationsfarbe; eigener scrollbarer Block, **immer sichtbar**.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).

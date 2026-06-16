@@ -92,6 +92,13 @@ interface AnnotationBase {
    * verträglich auf px abbildet.
    */
   strokeWidth?: number
+  /**
+   * Optionaler Beschriftungstext. Erscheint geordnet im „Markierungen"-Bereich
+   * unter den Notizen; im Bild bekommt eine beschriftete Annotation eine kleine
+   * Nummer NUR, wenn sie indiziert ist (≥ 2 gleiche Form+Farbe — siehe
+   * computeAnnotationIndices). Leer/undefined = unbeschriftet. Additiv & optional.
+   */
+  label?: string
 }
 
 /**

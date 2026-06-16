@@ -86,6 +86,52 @@ export function resolveStrokePx(stored?: number): number {
   return stored
 }
 
+/** Ob eine Annotation ein nicht-leeres Label trägt. */
+export function hasLabel(a: Annotation): boolean {
+  return !!a.label && a.label.trim() !== ''
+}
+
+/**
+ * Sinntragender Anker einer Annotation (normiert 0..1) — für die Position des
+ * Label-Eingabefelds und des Nummern-Badges. Pfeil → Schaft-Ende (Start `x1,y1`,
+ * damit die Spitze/der Befund frei bleibt); Kreis/Rechteck → obere rechte Ecke.
+ */
+export function annotationAnchor(a: Annotation): { x: number; y: number } {
+  if (a.type === 'arrow') return { x: a.x1, y: a.y1 }
+  return { x: a.x + a.w, y: a.y }
+}
+
+/**
+ * Index pro BESCHRIFTETER Annotation für die eindeutige Zuordnung Bild ↔ Liste.
+ * Beschriftete Annotationen werden nach Form+Farbe (`type:color`) in Array-/
+ * Erstellreihenfolge gruppiert: kommt eine Kombination nur einmal vor → `null`
+ * (kein Index, im Bild keine Nummer); ab zwei → fortlaufend `1,2,3 …`.
+ * Unbeschriftete erscheinen NICHT in der Map.
+ */
+export function computeAnnotationIndices(
+  annotations: Annotation[],
+): Map<string, number | null> {
+  const groups = new Map<string, Annotation[]>()
+  for (const a of annotations) {
+    if (!hasLabel(a)) continue
+    const key = `${a.type}:${a.color}`
+    const list = groups.get(key)
+    if (list) list.push(a)
+    else groups.set(key, [a])
+  }
+  const result = new Map<string, number | null>()
+  for (const list of groups.values()) {
+    if (list.length <= 1) result.set(list[0].id, null)
+    else list.forEach((a, i) => result.set(a.id, i + 1))
+  }
+  return result
+}
+
+/** Lesbare Schriftfarbe AUF der Annotationsfarbe (für die Badge-Ziffer). */
+export function contrastInk(c: AnnotationColor): string {
+  return c === 'white' || c === 'yellow' ? '#0d1117' : '#ffffff'
+}
+
 /** Auf [0,1] begrenzen — Annotationen bleiben innerhalb des Bildes. */
 export const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
 

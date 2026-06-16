@@ -2,9 +2,11 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import type { Annotation, AnnotationColor } from '@/lib/types'
 import { uid } from '@/lib/id'
 import {
+  annotationAnchor,
   buildAnnotation,
   clamp01,
   colorHex,
+  contrastInk,
   resolveStrokePx,
   ANNOTATION_COLORS,
 } from '@/lib/annotations'
@@ -36,6 +38,7 @@ export function AnnotationLayer({
   color,
   strokeWidth,
   selectedIds,
+  indices,
   onSelect,
   onCreate,
   className,
@@ -54,6 +57,8 @@ export function AnnotationLayer({
   strokeWidth: number
   /** IDs der aktuell ausgewählten Formen (Mehrfachauswahl möglich). */
   selectedIds: string[]
+  /** Index pro beschrifteter Annotation (id → Nummer|null); Nummer ⇒ Badge im Bild. */
+  indices: Map<string, number | null>
   onSelect: (id: string | null) => void
   onCreate: (a: Annotation) => void
   /** Wird auf das <svg> gelegt — vom Aufrufer zum Stapeln über dem Bild genutzt. */
@@ -186,6 +191,23 @@ export function AnnotationLayer({
             onSelect={onSelect}
           />
         ))}
+        {/* Nummern-Badges: nur für indizierte (beschriftete) Annotationen — also
+            ab der 2. gleichen Form+Farbe. Bildschirm-konstant über swUser. */}
+        {annotations.map((a) => {
+          const n = indices.get(a.id)
+          if (typeof n !== 'number') return null
+          return (
+            <IndexBadge
+              key={`badge-${a.id}`}
+              ann={a}
+              w={naturalW}
+              h={naturalH}
+              r={swUser(8)}
+              fontSize={swUser(11)}
+              n={n}
+            />
+          )
+        })}
       </g>
 
       {draftAnn && (
@@ -385,6 +407,68 @@ function Shape({
           {...hitProps}
         />
       )}
+    </g>
+  )
+}
+
+/**
+ * Kleine Nummern-Markierung neben einer indizierten Annotation. Gefüllte Scheibe
+ * in der Annotationsfarbe (dünner dunkler Ring für Lesbarkeit auf jedem Grund) +
+ * Kontrastziffer. Sitzt am Anker (Pfeil-Schaft / Box-Ecke), vom Befund weg
+ * versetzt. Nicht interaktiv (pointerEvents none) — stört die Auswahl nicht.
+ */
+function IndexBadge({
+  ann,
+  w,
+  h,
+  r,
+  fontSize,
+  n,
+}: {
+  ann: Annotation
+  w: number
+  h: number
+  r: number
+  fontSize: number
+  n: number
+}) {
+  const anchor = annotationAnchor(ann)
+  let cx = anchor.x * w
+  let cy = anchor.y * h
+  if (ann.type === 'arrow') {
+    // Vom Pfeilkopf weg, entlang des Schafts nach außen versetzen.
+    const dx = (ann.x1 - ann.x2) * w
+    const dy = (ann.y1 - ann.y2) * h
+    const len = Math.hypot(dx, dy) || 1
+    cx += (dx / len) * r * 1.6
+    cy += (dy / len) * r * 1.6
+  } else {
+    // Obere rechte Ecke nach außen (rechts/oben).
+    cx += r
+    cy -= r
+  }
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill={colorHex(ann.color)}
+        stroke="#0d1117"
+        strokeWidth={r * 0.16}
+      />
+      <text
+        x={cx}
+        y={cy}
+        fill={contrastInk(ann.color)}
+        fontSize={fontSize}
+        fontWeight={700}
+        textAnchor="middle"
+        dominantBaseline="central"
+        style={{ fontFamily: 'system-ui, sans-serif' }}
+      >
+        {n}
+      </text>
     </g>
   )
 }
