@@ -166,6 +166,7 @@ export function CaseGrid({
               c={c}
               tagGroups={tagGroups}
               selected={selectedIds.has(c.id)}
+              list={view === 'list'}
               onSelect={onCardSelect}
               onOpen={onCardOpen}
               onEdit={onCardEdit}

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { Case, TagGroup } from '@/lib/types'
 import { caseChips } from '@/lib/tags'
 import { isVideoCase } from '@/lib/video'
@@ -23,6 +24,7 @@ export function CaseCard({
   c,
   tagGroups,
   selected,
+  list,
   onSelect,
   onOpen,
   onEdit,
@@ -32,6 +34,8 @@ export function CaseCard({
   c: Case
   tagGroups: TagGroup[]
   selected: boolean
+  /** Listen-Modus: horizontale Zeile mit festem Thumbnail (konstante Höhe). */
+  list: boolean
   onSelect: (id: string, e: React.MouseEvent) => void
   onOpen: (id: string) => void
   onEdit: (id: string) => void
@@ -42,6 +46,7 @@ export function CaseCard({
   const hasNote = c.notes.trim() !== ''
   const isVideo = isVideoCase(c)
   const hasAnnotations = (c.annotations?.length ?? 0) > 0
+  const isNote = c.image === null && !isVideo
 
   const commonProps = {
     type: 'button' as const,
@@ -57,6 +62,65 @@ export function CaseCard({
   const selectionClass = selected
     ? 'border-accent ring-2 ring-accent'
     : 'hover:border-accent'
+
+  // Listen-Modus: horizontale Zeile mit festem 96px-Thumbnail links. Dadurch ist
+  // die Zeilenhöhe konstant — unabhängig vom Seitenverhältnis des Bildes (hohe
+  // Bilder werden im quadratischen Rahmen via object-cover zugeschnitten, statt
+  // die Zeile in die Höhe zu ziehen, wie es ein vollbreites Quadrat täte).
+  if (list) {
+    const noteText = c.notes.trim() || c.description.trim() || '(kein Text)'
+    return (
+      <button
+        {...commonProps}
+        className={`group relative flex items-stretch overflow-hidden rounded-[var(--radius-card)] border text-left transition-colors ${
+          isNote ? 'border-note-border bg-note-bg' : 'border-border bg-surface'
+        } ${selectionClass}`}
+      >
+        <EditButton onEdit={() => onEdit(c.id)} />
+        <DeleteButton onDelete={() => onDelete(c.id)} />
+        <div className="relative h-24 w-24 shrink-0">
+          {isNote ? (
+            <div className="bg-note-bg flex h-full w-full items-center justify-center text-2xl opacity-70">
+              📝
+            </div>
+          ) : c.image ? (
+            <img
+              src={c.image}
+              alt={c.title}
+              draggable={false}
+              className="block h-full w-full bg-black object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-black text-2xl">
+              🎬
+            </div>
+          )}
+          {isVideo && <PlayBadge />}
+          {hasAnnotations && <AnnotationBadge />}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 p-3">
+          <div className="truncate text-[13px] font-semibold">
+            {c.title || '(ohne Titel)'}
+          </div>
+          {isNote && (
+            <div className="text-note line-clamp-2 text-xs leading-relaxed">
+              {noteText}
+            </div>
+          )}
+          {chips.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {chips.map((chip, i) => (
+                <TagChip key={i} chip={chip} />
+              ))}
+            </div>
+          )}
+          {!isNote && hasNote && (
+            <div className="text-[10px] text-[#a89a30]">📝 Notiz vorhanden</div>
+          )}
+        </div>
+      </button>
+    )
+  }
 
   if (c.image === null && !isVideo) {
     const noteText = c.notes.trim() || c.description.trim() || '(kein Text)'
@@ -85,24 +149,30 @@ export function CaseCard({
     >
       <EditButton onEdit={() => onEdit(c.id)} />
       <DeleteButton onDelete={() => onDelete(c.id)} />
+      {/* aspect-square hält die Kachel quadratisch. WICHTIG: Bild/Platzhalter
+          liegen absolut (inset-0), damit ihre intrinsische Pixelhöhe NICHT in die
+          Grid-Zeilenhöhe einfließt — sonst würde ein hohes Hochformat-Bild den
+          auto-Row-Track aufblähen und aspect-square aushebeln (die Kachel wüchse
+          mit dem Seitenverhältnis). So bestimmt allein der Rahmen die Höhe. */}
       <div className="relative aspect-square w-full shrink-0">
         {c.image ? (
           <img
             src={c.image}
             alt={c.title}
             draggable={false}
-            className="block h-full w-full bg-black object-cover"
+            className="absolute inset-0 block h-full w-full bg-black object-cover"
           />
         ) : (
           // Video-Fall ohne extrahiertes Thumbnail: Platzhalter statt Bild.
-          <div className="flex h-full w-full items-center justify-center bg-black text-3xl">
+          <div className="absolute inset-0 flex items-center justify-center bg-black text-3xl">
             🎬
           </div>
         )}
         {isVideo && <PlayBadge />}
         {hasAnnotations && <AnnotationBadge />}
+        {hasNote && <NoteBadge />}
       </div>
-      <CardBody title={c.title} chips={chips} hasNote={hasNote} />
+      <CardBody title={c.title} chips={chips} />
     </button>
   )
 }
@@ -208,6 +278,19 @@ function AnnotationBadge() {
   )
 }
 
+/** Dezentes Notiz-Symbol (unten links) — signalisiert „hat Notizen", ohne eine
+ *  variable Textzeile in den Body zu setzen (die die Kachelhöhe ändern würde). */
+function NoteBadge() {
+  return (
+    <span
+      className="absolute bottom-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/55 text-[11px] ring-1 ring-white/70"
+      title="Hat Notizen"
+    >
+      📝
+    </span>
+  )
+}
+
 /** Play-Symbol über dem Thumbnail — macht Video-Fälle auf einen Blick erkennbar. */
 function PlayBadge() {
   return (
@@ -224,25 +307,104 @@ function PlayBadge() {
 function CardBody({
   title,
   chips,
-  hasNote = false,
 }: {
   title: string
   chips: ReturnType<typeof caseChips>
-  hasNote?: boolean
 }) {
+  // Bewusst KEIN flex-1: Titel (eine Zeile, truncate) + feste Tag-Zone ergeben
+  // eine konstante Body-Höhe → alle Grid-Kacheln gleich hoch.
   return (
-    <div className="flex flex-1 flex-col p-2.5">
+    <div className="flex flex-col p-2.5">
       <div className="mb-1 truncate text-[13px] font-semibold">
         {title || '(ohne Titel)'}
       </div>
-      <div className="flex flex-wrap gap-1">
+      <CardTags chips={chips} />
+    </div>
+  )
+}
+
+// gap-1 = 4px; reservierte Breite für den „+N"-Indikator (großzügig → eher ein
+// Chip weniger als ein abgeschnittenes „+N").
+const TAG_GAP = 4
+const BADGE_RESERVE = 30
+
+/**
+ * Feste, EINZEILIGE Tag-Zone der Grid-Kachel. Konstante Höhe unabhängig von
+ * Anzahl/Länge der Tags: es werden nur so viele Chips gezeigt, wie in eine Zeile
+ * passen, der Rest wird zu einem dezenten „+N" zusammengefasst. Lange Tags werden
+ * per Ellipsis gekürzt (TagChip truncate). Die vollständigen Tags bleiben in
+ * Detail/Lightbox/Bearbeiten sichtbar — hier zählt nur der schnelle Überblick.
+ *
+ * Messung: ein versteckter Messer rendert ALLE Chips (mit identischem Styling,
+ * inkl. Ellipsis-Kappung) und beeinflusst die Höhe nicht (absolut). Aus den
+ * gemessenen Breiten wird berechnet, wie viele Chips plus „+N" in die verfügbare
+ * Breite passen. ResizeObserver hält das bei Spaltenbreiten-Änderung aktuell.
+ */
+function CardTags({ chips }: { chips: ReturnType<typeof caseChips> }) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(chips.length)
+
+  useLayoutEffect(() => {
+    const row = rowRef.current
+    const meas = measureRef.current
+    if (!row || !meas) return
+    const compute = () => {
+      const avail = row.clientWidth
+      const widths = Array.from(meas.children).map(
+        (el) => (el as HTMLElement).getBoundingClientRect().width,
+      )
+      let sum = 0
+      widths.forEach((w, i) => {
+        sum += w + (i > 0 ? TAG_GAP : 0)
+      })
+      // Passen alle → keine Kürzung, kein „+N".
+      if (sum <= avail) {
+        setVisible(chips.length)
+        return
+      }
+      // Sonst so viele, wie samt reserviertem „+N" hineinpassen.
+      let used = 0
+      let count = 0
+      for (let i = 0; i < widths.length; i++) {
+        const add = (count > 0 ? TAG_GAP : 0) + widths[i]
+        if (used + add + TAG_GAP + BADGE_RESERVE <= avail) {
+          used += add
+          count++
+        } else break
+      }
+      setVisible(count)
+    }
+    compute()
+    const ro = new ResizeObserver(compute)
+    ro.observe(row)
+    return () => ro.disconnect()
+  }, [chips])
+
+  // Leere, aber höhengleiche Zone, wenn es keine Tags gibt (Höhe bleibt konstant).
+  if (chips.length === 0) return <div className="h-5" />
+
+  const hidden = chips.length - visible
+  return (
+    <div ref={rowRef} className="relative flex h-5 items-center gap-1 overflow-hidden">
+      {chips.slice(0, visible).map((chip, i) => (
+        <TagChip key={i} chip={chip} truncate />
+      ))}
+      {hidden > 0 && (
+        <span className="text-text-muted bg-tag-bg border-border shrink-0 rounded-[3px] border px-1 py-0.5 text-[10px] tabular-nums">
+          +{hidden}
+        </span>
+      )}
+      {/* Versteckter Messer: alle Chips, beeinflusst die Höhe nicht (absolut). */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="pointer-events-none invisible absolute top-0 left-0 flex gap-1"
+      >
         {chips.map((chip, i) => (
-          <TagChip key={i} chip={chip} />
+          <TagChip key={i} chip={chip} truncate />
         ))}
       </div>
-      {hasNote && (
-        <div className="mt-1 text-[10px] text-[#a89a30]">📝 Notiz vorhanden</div>
-      )}
     </div>
   )
 }
