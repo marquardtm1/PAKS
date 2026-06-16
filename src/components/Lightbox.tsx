@@ -866,7 +866,75 @@ function HeaderToggle({
   )
 }
 
-/** Schwebende Werkzeugleiste im Zeichen-Modus: Werkzeug · Farbe · Löschen. */
+/** Höhe des Stärke-Balkens (px) je Stufe — für Trigger und Aufklapp-Optionen. */
+const STROKE_BAR_PX: Record<'thin' | 'medium' | 'thick', number> = {
+  thin: 1.5,
+  medium: 3,
+  thick: 5,
+}
+
+/** Waagrechter Balken, dessen Höhe die Strichstärke andeutet (erbt Textfarbe). */
+function WidthBar({ k }: { k: 'thin' | 'medium' | 'thick' }) {
+  return (
+    <span
+      className="block w-4 rounded-full bg-current"
+      style={{ height: `${STROKE_BAR_PX[k]}px` }}
+    />
+  )
+}
+
+/**
+ * Aufklappbares Auswahl-Element der Werkzeugleiste (Form / Farbe / Strichstärke).
+ * Der zugeklappte Knopf zeigt die aktuelle Wahl (Trigger) — der aktive Zustand
+ * ist also ohne Aufklappen erkennbar. Geöffnet erscheint ein kleines Flyout
+ * UNTER dem Knopf (verdeckt das Bild nur, solange offen). Schließen über Wahl
+ * (vom Aufrufer) oder Außenklick/Esc (zentral in DrawToolbar).
+ */
+function ToolbarMenu({
+  open,
+  onToggle,
+  title,
+  trigger,
+  children,
+}: {
+  open: boolean
+  onToggle: () => void
+  title: string
+  trigger: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        title={title}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={[
+          'flex h-7 items-center gap-1 rounded border px-1.5 transition-colors',
+          open
+            ? 'bg-surface-2 border-accent text-text'
+            : 'bg-surface-2 border-border text-text hover:border-accent',
+        ].join(' ')}
+      >
+        {trigger}
+        <ChevronIcon />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="bg-surface/95 border-border absolute top-full left-1/2 z-30 mt-1 flex -translate-x-1/2 items-center gap-1 rounded-[var(--radius-card)] border p-1 shadow-lg backdrop-blur"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Schwebende Werkzeugleiste im Zeichen-Modus: Form · Farbe · Stärke (aufklappbar)
+ *  + direkte Aktionen (Alle markieren · Undo · Redo · Löschen · Schließen). */
 function DrawToolbar({
   tool,
   onToolChange,
@@ -888,7 +956,7 @@ function DrawToolbar({
   onToolChange: (t: ToolKind) => void
   color: AnnotationColor
   onColorChange: (c: AnnotationColor) => void
-  /** Aktuelle Strichstärke (Bruchteil) für neue Formen. */
+  /** Aktuelle Strichstärke (CSS-px) für neue Formen. */
   width: number
   onWidthChange: (w: number) => void
   canDelete: boolean
@@ -901,15 +969,67 @@ function DrawToolbar({
   onRedo: () => void
   onExit: () => void
 }) {
+  // Genau ein Aufklapp-Menü offen (oder keins). Öffnen eines schließt das andere.
+  const [openMenu, setOpenMenu] = useState<null | 'tool' | 'color' | 'width'>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Offenes Menü bei Außenklick oder Esc schließen (verdeckt das Bild nicht
+  // dauerhaft). Esc in der Capture-Phase abfangen + stoppen, damit es NUR das
+  // Menü schließt und nicht zugleich den Zeichen-Modus verlässt.
+  useEffect(() => {
+    if (!openMenu) return
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpenMenu(null)
+      }
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setOpenMenu(null)
+      }
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [openMenu])
+
   const tools: { key: ToolKind; label: string; icon: React.ReactNode }[] = [
     { key: 'select', label: 'Auswählen / Bewegen (zoomen & verschieben)', icon: <CursorIcon /> },
     { key: 'arrow', label: 'Pfeil', icon: <ArrowIcon /> },
     { key: 'circle', label: 'Kreis', icon: <CircleIcon /> },
     { key: 'rect', label: 'Rechteck', icon: <RectIcon /> },
   ]
+  const currentTool = tools.find((t) => t.key === tool) ?? tools[0]
+  const currentColor = ANNOTATION_COLORS.find((c) => c.key === color) ?? ANNOTATION_COLORS[0]
+  const currentWidth = STROKE_WIDTHS.find((w) => w.px === width) ?? STROKE_WIDTHS[0]
+
+  const toggle = (m: 'tool' | 'color' | 'width') =>
+    setOpenMenu((prev) => (prev === m ? null : m))
+  // Wahl treffen und Menü schließen (ein Klick-zum-Aufklappen + ein Klick-zur-Wahl).
+  const choose = (fn: () => void) => {
+    fn()
+    setOpenMenu(null)
+  }
+
+  const actionBtn =
+    'bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30'
+
   return (
-    <div className="bg-surface/95 border-border absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-[var(--radius-card)] border px-2 py-1.5 shadow-lg backdrop-blur">
-      <div className="flex items-center gap-1">
+    <div
+      ref={rootRef}
+      className="bg-surface/95 border-border absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-[var(--radius-card)] border px-2 py-1.5 shadow-lg backdrop-blur"
+    >
+      {/* Form: aktuelles Werkzeug, klappt die vier Werkzeuge auf. */}
+      <ToolbarMenu
+        open={openMenu === 'tool'}
+        onToggle={() => toggle('tool')}
+        title={`Werkzeug: ${currentTool.label}`}
+        trigger={currentTool.icon}
+      >
         {tools.map((t, i) => (
           <Fragment key={t.key}>
             {/* Trennlinie zwischen Auswahl/Bewegen und den Zeichen-Werkzeugen. */}
@@ -918,7 +1038,7 @@ function DrawToolbar({
               type="button"
               title={t.label}
               aria-pressed={tool === t.key}
-              onClick={() => onToolChange(t.key)}
+              onClick={() => choose(() => onToolChange(t.key))}
               className={[
                 'flex h-7 w-7 items-center justify-center rounded border transition-colors',
                 tool === t.key
@@ -930,39 +1050,56 @@ function DrawToolbar({
             </button>
           </Fragment>
         ))}
-      </div>
-      <span className="bg-border h-5 w-px" />
-      <div className="flex items-center gap-1">
+      </ToolbarMenu>
+
+      {/* Farbe: aktueller Farbpunkt, klappt die fünf Farben auf. */}
+      <ToolbarMenu
+        open={openMenu === 'color'}
+        onToggle={() => toggle('color')}
+        title={`Farbe: ${currentColor.label}`}
+        trigger={
+          <span
+            className="border-border h-4 w-4 rounded-full border"
+            style={{ background: currentColor.hex }}
+          />
+        }
+      >
         {ANNOTATION_COLORS.map((c) => (
           <button
             key={c.key}
             type="button"
             title={c.label}
             aria-pressed={color === c.key}
-            onClick={() => onColorChange(c.key)}
+            onClick={() => choose(() => onColorChange(c.key))}
             className={[
               // Konstanter dezenter Rand grenzt auch helle Farben (Weiß) ab; der
               // aktive Zustand ist ein Akzent-Ring mit Offset — sichtbar auf jeder
               // Füllfarbe inkl. Weiß (ein weißer Rand verschwände auf Weiß).
-              'h-6 w-6 rounded-full border border-border transition-transform',
+              'border-border h-6 w-6 rounded-full border transition-transform',
               color === c.key
-                ? 'scale-110 ring-2 ring-accent ring-offset-2 ring-offset-[color:var(--color-surface)]'
+                ? 'ring-accent scale-110 ring-2 ring-offset-2 ring-offset-[color:var(--color-surface)]'
                 : 'hover:scale-105',
             ].join(' ')}
             style={{ background: c.hex }}
           />
         ))}
-      </div>
-      <span className="bg-border h-5 w-px" />
-      {/* Strichstärke: gilt für neue Formen; mit Auswahl ändert sie die ausgewählten. */}
-      <div className="flex items-center gap-1">
+      </ToolbarMenu>
+
+      {/* Strichstärke: aktuelle Stufe, klappt Dünn/Mittel/Dick auf. Gilt für neue
+          Formen; mit Auswahl ändert sie die ausgewählten. */}
+      <ToolbarMenu
+        open={openMenu === 'width'}
+        onToggle={() => toggle('width')}
+        title={`Strichstärke: ${currentWidth.label}`}
+        trigger={<WidthBar k={currentWidth.key} />}
+      >
         {STROKE_WIDTHS.map((w) => (
           <button
             key={w.key}
             type="button"
             title={`Strichstärke: ${w.label}`}
             aria-pressed={width === w.px}
-            onClick={() => onWidthChange(w.px)}
+            onClick={() => choose(() => onWidthChange(w.px))}
             className={[
               'flex h-7 w-7 items-center justify-center rounded border transition-colors',
               width === w.px
@@ -970,47 +1107,43 @@ function DrawToolbar({
                 : 'bg-surface-2 border-border text-text hover:border-accent',
             ].join(' ')}
           >
-            {/* Waagrechter Balken, dessen Höhe die Stärke andeutet. */}
-            <span
-              className="block w-4 rounded-full bg-current"
-              style={{ height: `${w.key === 'thin' ? 1.5 : w.key === 'medium' ? 3 : 5}px` }}
-            />
+            <WidthBar k={w.key} />
           </button>
         ))}
-      </div>
+      </ToolbarMenu>
+
       <span className="bg-border h-5 w-px" />
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title={canUndo ? 'Rückgängig (Strg+Z)' : 'Nichts rückgängig zu machen'}
-          aria-label="Rückgängig"
-          className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
-        >
-          <UndoIcon />
-        </button>
-        <button
-          type="button"
-          onClick={onRedo}
-          disabled={!canRedo}
-          title={canRedo ? 'Wiederherstellen (Strg+Y)' : 'Nichts wiederherzustellen'}
-          aria-label="Wiederherstellen"
-          className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
-        >
-          <RedoIcon />
-        </button>
-      </div>
-      <span className="bg-border h-5 w-px" />
+
+      {/* Direkte Aktionen — bewusst NICHT hinter einem Aufklapp-Schritt. */}
       <button
         type="button"
         onClick={onSelectAll}
         disabled={!canSelectAll}
         title="Alle Markierungen auswählen"
         aria-label="Alle Markierungen auswählen"
-        className="bg-surface-2 border-border text-text-muted hover:text-text flex h-7 w-7 items-center justify-center rounded border transition-colors disabled:opacity-30"
+        className={actionBtn}
       >
         <SelectAllIcon />
+      </button>
+      <button
+        type="button"
+        onClick={onUndo}
+        disabled={!canUndo}
+        title={canUndo ? 'Rückgängig (Strg+Z)' : 'Nichts rückgängig zu machen'}
+        aria-label="Rückgängig"
+        className={actionBtn}
+      >
+        <UndoIcon />
+      </button>
+      <button
+        type="button"
+        onClick={onRedo}
+        disabled={!canRedo}
+        title={canRedo ? 'Wiederherstellen (Strg+Y)' : 'Nichts wiederherzustellen'}
+        aria-label="Wiederherstellen"
+        className={actionBtn}
+      >
+        <RedoIcon />
       </button>
       <button
         type="button"
@@ -1021,11 +1154,7 @@ function DrawToolbar({
       >
         <TrashIcon />
       </button>
-      <span className="text-text-muted ml-1 hidden text-[11px] md:inline">
-        {tool === 'select'
-          ? 'Ziehen verschiebt · Strg+Rad zoomt · Form anklicken zum Auswählen'
-          : 'Ziehen zum Zeichnen · Form anklicken zum Auswählen'}
-      </span>
+
       <span className="bg-border h-5 w-px" />
       <button
         type="button"
@@ -1040,6 +1169,14 @@ function DrawToolbar({
         </svg>
       </button>
     </div>
+  )
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-60">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
   )
 }
 

@@ -262,6 +262,12 @@ Zwei Ergänzungen am Annotations-Editor (#17/#27).
   - **Bewusste Konsequenzen:** im Select-Modus kein Deselektieren per Leerklick (Pan besitzt leere Drags — Abwahl über andere Form/Esc); Form-Innenflächen (Kreis/Rechteck) zählen als Treffer.
 - **Liste → Bild (`selectFromList`):** Klick auf eine „Markierungen"-Zeile wählt die Annotation im Bild aus (Halo, Label-Editor ohne Fokus). Ist der Zeichen-Modus aus, wird er mit Auswahl/Bewegen aktiviert; die aktive Zeile ist dezent hinterlegt. Ergänzt die bestehende Bild→Liste-Zuordnung über den Index.
 
+### 29. Kompakte Zeichnen-Werkzeugleiste (Aufklapp-Auswahl) — ✅ ERLEDIGT
+Die volle Werkzeugleiste (alle Werkzeuge/Farben/Stärken inline) auf drei **aufklappbare Auswahl-Elemente** (`ToolbarMenu`) reduziert: **Form** (Werkzeug-Icon → 4 Werkzeuge), **Farbe** (Farbpunkt → 5 Farben), **Strichstärke** (Balken → Dünn/Mittel/Dick). Der zugeklappte Knopf zeigt die **aktuelle Wahl** (aktiver Zustand ohne Aufklappen sichtbar); das Flyout erscheint unter dem Knopf und verdeckt das Bild nur, solange offen.
+- **Schließen:** bei Wahl (`choose`) sowie **Außenklick** (Capture-`pointerdown`) und **Esc**; Esc wird in der Capture-Phase abgefangen + gestoppt, sodass es **nur das Menü** schließt (nicht den Zeichen-Modus verlässt). Immer nur **ein** Menü offen.
+- **Direkt** (kein Aufklapp-Schritt): Alle markieren · Undo · Redo · Löschen · Schließen.
+- Bedien-Hinweiszeile entfernt (Bedienung intuitiv genug).
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
