@@ -60,8 +60,15 @@ export function CaseGrid({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-4" onClick={handleBackgroundClick}>
-      <div className="mb-4 flex items-center gap-2.5" data-toolbar>
+    <div className="flex-1 overflow-y-auto px-5 pb-4" onClick={handleBackgroundClick}>
+      {/* Sticky Werkzeugleiste: bleibt beim Scrollen oben stehen. -mx-5 px-5
+          lässt den deckenden Hintergrund (bg-bg) + Trennlinie die volle Breite
+          füllen, damit durchscrollende Kacheln nicht durchscheinen; py-3 gibt der
+          Leiste eigenen Abstand, mb-3 hält die Kacheln darunter frei. */}
+      <div
+        className="bg-bg border-border sticky top-0 z-10 -mx-5 mb-3 flex items-center gap-2.5 border-b px-5 py-3"
+        data-toolbar
+      >
         <span className="text-text-muted text-[13px]">
           {cases.length} {cases.length === 1 ? 'Fall' : 'Fälle'}
           {selectedIds.size > 0 && (
