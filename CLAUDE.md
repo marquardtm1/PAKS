@@ -164,14 +164,12 @@ Use Case: **eigene Lehr-/Fallvideos über Metadaten auffinden und lernen**. Zwei
 - **UI:** Play-Badge auf der Kachel, „Video"-Knopf in der Sidebar; eingebettet → Player in der Lightbox, referenziert → Pfad-Zugang (Abspielen/Kopieren).
 - **Bestandskompatibilität:** additive optionale Felder, keine Schema-Migration; bestehende Pfad-Video-Fälle laufen unverändert.
 
-### 13. Sicherungs-Sichtbarkeit (Speicher-Status + Schnellzugang) — ❌ OFFEN
-Damit Nutzer ihre Daten nicht unwissentlich nur im flüchtigen IndexedDB halten und bei „Browserdaten löschen" verlieren.
-- **(a) Speicher-Status-Hinweis in der Kopfzeile** (Nähe Save-Indikator):
-  - **Keine verbundene Datei (ungesicherter Zustand):** dezent, aber klar anzeigen, dass die Daten **nur im Browser** liegen und bei „Browserdaten löschen" **verloren gehen**, mit Aufforderung/**Direktlink zu Verbinden oder Exportieren**.
-  - **Verbundene Datei:** bestehender **Save-Indikator** bleibt unverändert.
-  - **Ton:** informieren, nicht erschrecken.
-- **(b) Schnellzugang** zu „Datei verbinden" und „Exportieren" **außerhalb** des Einstellungsmenüs (z. B. untere Sidebar-Zone beim Zahnrad oder über den Status-Hinweis). Bestehende Funktionen in den Einstellungen bleiben erhalten.
-- **Wichtig:** Hinweis **nur im ungesicherten Zustand** zeigen — Nutzer mit verbundener Datei **nicht behelligen**.
+### 13. Sicherungs-Sichtbarkeit (Speicher-Status + Schnellzugang) — ✅ WEITGEHEND ERLEDIGT
+Damit Nutzer ihre Daten nicht unwissentlich nur im flüchtigen IndexedDB halten und bei „Browserdaten löschen" verlieren. Abgedeckt durch den **Speicher-Kontrollbereich in der Kopfzeile** (Schnellzugang außerhalb der Einstellungen):
+- **Save-Indikator** (`FileSaveIndicator`) — reine Statusanzeige bei verbundener/getrennter/fehlerhafter Datei.
+- **Verbinden/Trennen-Button** (`FileConnectButton`) — Datei anlegen/öffnen bzw. trennen (mit Warn-Rückfrage), abgestimmt mit dem Reconnect-Band (keine Doppelung).
+- **Schnell-Backup-Button** (`QuickBackupButton`, #21) — Ein-Klick-JSON-Export, aktiv im unverbundenen Zustand.
+- **Optionaler Rest:** ein *aktiver* Warnhinweis im unverbundenen Zustand (über die Tooltips/den ausgegrauten Save-Indikator hinaus). Bewusst zurückgestellt — der Schnellzugang macht Verbinden/Exportieren ohnehin sichtbar; nur nachrüsten, falls gewünscht.
 
 ### 14. Kategorien/Werte per Drag & Drop umsortieren (nur Reihenfolge, kein Umhängen) — ❌ OFFEN
 Tag-Gruppen **untereinander** und Werte **innerhalb ihrer Gruppe** per Drag umsortieren — **nur Reihenfolge**, kein Umhängen zwischen Gruppen.
@@ -221,13 +219,13 @@ Fälle **nicht sofort endgültig** löschen, sondern erst in einen **Papierkorb*
   3. **Verhältnis zum bestehenden Undo (Strg+Z):** Undo macht schon **einzelne** Löschungen rückgängig (Session-Ringpuffer); der Papierkorb wäre die **längerfristige** Variante. Abgrenzung/Zusammenspiel klären.
   4. **Export/Dual-Write:** gelöschte (Papierkorb-)Fälle **mitspeichern** oder **ausschließen**? Sitzt der Papierkorb als Flag am Fall, **wandert er sonst automatisch in die Datei** — bewusst entscheiden (z. B. beim Schreiben filtern vs. mitschreiben für geräteübergreifenden Papierkorb).
 
-### 20. Weiß als Annotationsfarbe — ❌ OFFEN
-Die Farbauswahl der Bild-Annotationen (#17, aktuell **Rot/Gelb/Grün**) um **Weiß** ergänzen — als **Kontrastfarbe auf dunklen Bildbereichen**, wo Rot/Gelb/Grün schlecht sichtbar sind.
+### 20. Weiß als Annotationsfarbe — ✅ ERLEDIGT
+Die Farbauswahl der Bild-Annotationen (#17) um **Weiß** ergänzt — **Kontrastfarbe auf dunklen Bildbereichen**. `AnnotationColor` additiv um `'white'` erweitert (bestehende Annotationen unberührt), Weiß in `ANNOTATION_COLORS`; Werkzeugleiste, Umfärben und SVG-Pfeilkopf-Marker iterieren darüber. Aktiver Farb-Swatch als Akzent-Ring (auf jeder Füllfarbe inkl. Weiß sichtbar).
 
-### 21. Schneller Backup-/Download-Button neben dem Speicherstatus — ❌ OFFEN
-Kleiner **Download-Button** (JSON-Backup, **Weg A**) direkt **neben dem Speicher-Status** in der Kopfzeile — für ein schnelles manuelles Backup ohne Umweg über die Einstellungen.
-- **Ausgegraut**, wenn eine **lebende Datei verbunden** ist (Weg B — dort wird ohnehin laufend gesichert); **nur im unverbundenen Zustand aktiv**.
-- Gehört thematisch zu #13 (Sicherungs-Sichtbarkeit).
+### 21. Schneller Backup-/Download-Button neben dem Speicherstatus — ✅ ERLEDIGT
+Kleiner **Download-Button** (`QuickBackupButton`) in der Kopfzeile, löst den bestehenden JSON-Export (Weg A, `downloadSnapshot`) mit einem Klick aus — kein neuer Export-Pfad.
+- **Ausgegraut** bei verbundener **lebender Datei** (Weg B, `fileStatus 'connected'` — dort wird laufend gesichert); in allen übrigen Zuständen aktiv.
+- Teil des Speicher-Kontrollbereichs (#13).
 
 ### 22. Bilder als Dateien aus der JSON exportieren (Tag-gefiltert) — ❌ OFFEN
 Eingebettete Bilder als **einzelne Dateien** (.jpg/.png) herausexportieren — **verlustfrei** (die base64-Data-URLs sind das vollständige Originalbild, reine Decodierung).
