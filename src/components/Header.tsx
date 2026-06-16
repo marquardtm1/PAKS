@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Modal } from './Modal'
 import { FileSaveIndicator } from './FileSaveIndicator'
+import { FileConnectButton } from './FileConnectButton'
 import { QuickBackupButton } from './QuickBackupButton'
 
 /**
@@ -39,6 +40,7 @@ export function Header() {
       <div className="min-w-0 flex-1" />
 
       <FileSaveIndicator />
+      <FileConnectButton />
       <QuickBackupButton />
 
       <button
