@@ -40,7 +40,7 @@ export const DEFAULT_SIDEBAR_BOTTOM_HEIGHT = 232
 export const DEFAULT_SETTINGS: Settings = {
   disclaimerAccepted: false,
   startupNoticeDismissed: false,
-  theme: 'dark',
+  theme: 'light',
   sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
   sidebarBottomHeight: DEFAULT_SIDEBAR_BOTTOM_HEIGHT,
   filenameSplitEnabled: false,

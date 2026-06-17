@@ -295,6 +295,13 @@ Der Datenschutz-Teil des Erststart-Dialogs (#30) verlangt jetzt eine **aktive Be
 - **Persistenz:** nutzt das vorhandene `disclaimerAccepted` (jede freigeschaltete Aktion setzt es via `ackDisclaimer()`/`close()`) — **kein neues Schema-Feld**, Bestätigung nur einmal nötig. `confirmed` ist reines UI-Gate für diesen Durchlauf.
 - **Nur Erststart:** greift ausschließlich im `includeDisclaimer`-Zweig; Fall A (Willkommen) und Fall B (Warnung) unverändert.
 
+### 33. Neuer Default-Zustand für frische Nutzer (Theme · Kategorien · Seed-Notiz) — ✅ ERLEDIGT
+Erststart-Defaults überarbeitet — **betrifft nur neue Nutzer mit leerer IndexedDB**; Bestandsnutzer bleiben unberührt (gespeicherte Settings/Kategorien/Fälle gewinnen beim Merge `{ ...DEFAULT_SETTINGS, ...stored }` bzw. liegen schon im Snapshot).
+- **Theme-Default → `light`** (`DEFAULT_SETTINGS.theme` in `format.ts`). Neue Nutzer starten im Tagmodus; bestehende behalten ihr explizit gespeichertes `theme`.
+- **Start-Kategorien ersetzt** (`defaultTagGroups` in `seed.ts`): statt „Modalität" + langer „Region"-Liste nur noch **Region** (grün `#2ea043`: Gehirn · Kopf/Hals · Wirbelsäule) und **Ätiologie** (`#a371f7`: entwicklungsbedingt · exogen · neoplastisch · entzündlich · kardiovaskulär/hämatologisch · strukturell/funktionell). `MODALITY_GROUP_ID` entfernt (nirgends sonst genutzt), `ETIOLOGY_GROUP_ID` neu.
+- **Demo-Fälle → eine Willkommens-/Anleitungs-Notiz** (`WELCOME_NOTE_ID = 'demo-welcome'`, reine Notiz ohne Bild): erklärt Importieren/Taggen/Annotieren/Sichern und dass man sie löschen kann. Die alten fachlichen Demo-Notizen (Mediainfarkt/ICB/MS) entfallen für neue Nutzer. *(Ein Demo-Bild mit Beispiel-Annotationen folgt später separat.)*
+- **`hasOwnData` unberührt:** Logik unverändert (`!DEMO_ID_SET.has(id)`). `DEMO_CASE_IDS` enthält jetzt die neue Notiz-ID **plus** die drei Alt-IDs (nur zur Erkennung) → Bestandsnutzer, die alte Demo-Fälle nie gelöscht haben, bleiben korrekt Fall A (Willkommen) statt Fall B (Warnung).
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).
@@ -317,7 +324,7 @@ Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche da
 
 - **UI-Sprache: Deutsch** (Endnutzer sind deutschsprachige Radiologen)
 - **Code-Sprache: Englisch** (Variablen, Funktionen, Kommentare)
-- **Dark mode only** – Farbschema: `#0d1117` Hintergrund, `#2a7db8` Akzent
+- **Hell- UND Dunkelmodus** – umschaltbar (`settings.theme: 'light' | 'dark'`). **Default für neue Nutzer: Hell (Tagmodus).** Bestehende Nutzer behalten ihre gespeicherte Wahl. Dunkel-Farbschema: `#0d1117` Hintergrund, `#2a7db8` Akzent. (Früher „dark mode only" — der Light-Modus ist inzwischen vollwertig und der neue Standard.)
 - Notizen visuell von Beschreibung abgesetzt (goldgelb: `#d4c97a`)
 - Kein unnötiges UI-Rauschen – Radiologen arbeiten konzentriert
 
