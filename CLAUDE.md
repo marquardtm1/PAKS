@@ -289,6 +289,12 @@ Beim App-Start ohne lebende Datei (Weg B) ein abgestufter Dialog (`StartupStorag
 - **Bugfix dabei:** im Start-Reconnect-Effekt das `active`-Cleanup-Flag entfernt — unter `<StrictMode>` (dev) verhinderte dessen Cleanup zusammen mit dem `fileRestoreAttempted`-Ref, dass `setFileRestoreSettled(true)` lief → Dialog erschien nie. Einmaligkeit garantiert nun allein der Ref (überlebt das StrictMode-Remount); der Root-Provider unmountet ohnehin nicht.
 - **`Modal`:** neues `dismissable`-Prop (false → kein ×, kein Esc-/Hintergrund-Schließen) für den Erststart-Dialog.
 
+### 32. Pflicht-Checkbox für den Anonymisierungs-Hinweis (Erststart) — ✅ ERLEDIGT
+Der Datenschutz-Teil des Erststart-Dialogs (#30) verlangt jetzt eine **aktive Bestätigung** statt nur eines Knopfdrucks: Pflicht-Checkbox „Ich habe verstanden und verwende ausschließlich anonymisierte Bilder (keine Patientennamen, Geburtsdaten oder IDs im Bild)" im Disclaimer-Block.
+- **Gate:** `blocked = includeDisclaimer && !confirmed` (lokaler `confirmed`-State). Solange nicht angekreuzt, sind **alle** Aktionen ausgegraut/deaktiviert (Neue Datei / Bestehende öffnen / Exportieren / Schließen-Footer). Zusammen mit `dismissable={false}` (kein Esc/Hintergrund) kommt man ohne aktives Ankreuzen nicht aus dem Dialog.
+- **Persistenz:** nutzt das vorhandene `disclaimerAccepted` (jede freigeschaltete Aktion setzt es via `ackDisclaimer()`/`close()`) — **kein neues Schema-Feld**, Bestätigung nur einmal nötig. `confirmed` ist reines UI-Gate für diesen Durchlauf.
+- **Nur Erststart:** greift ausschließlich im `includeDisclaimer`-Zweig; Fall A (Willkommen) und Fall B (Warnung) unverändert.
+
 ### Zusätzlich umgesetzt (außerhalb dieser nummerierten Liste) — ✅
 Kam über die „Layout der Archiv-Funktion"-Sektion oder als Ad-hoc-Wünsche dazu:
 - **Vollbild-Ansicht (Lightbox):** Doppelklick öffnet groß, Pfeil-Navigation im gefilterten Set, Bearbeiten/Löschen, aufklappbares Notizfeld (Default-Klappstatus in Settings).

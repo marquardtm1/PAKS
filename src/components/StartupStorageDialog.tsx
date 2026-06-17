@@ -38,6 +38,9 @@ export function StartupStorageDialog() {
   const [variant, setVariant] = useState<'welcome' | 'warning'>('welcome')
   // Erststart → Datenschutz-Block einblenden und bewusste Bestätigung verlangen.
   const [includeDisclaimer, setIncludeDisclaimer] = useState(false)
+  // Pflicht-Ankreuzen des Anonymisierungs-Hinweises beim Erststart: solange nicht
+  // gesetzt, sind alle Aktionen (Verbinden/Export/Schließen) gesperrt.
+  const [confirmed, setConfirmed] = useState(false)
   const [dismiss, setDismiss] = useState(false)
   const [exported, setExported] = useState(false)
   // Genau einmal pro App-Start entscheiden (kein erneutes Aufpoppen, wenn der
@@ -82,6 +85,10 @@ export function StartupStorageDialog() {
   const showExport = isWarning || !supported
   const caseCount = snapshot.cases.length
 
+  // Beim Erststart muss der Anonymisierungs-Hinweis aktiv angekreuzt werden, bevor
+  // irgendeine Aktion (inkl. Schließen) möglich ist.
+  const blocked = includeDisclaimer && !confirmed
+
   // Beim Erststart akzeptiert JEDE bewusste Aktion den Datenschutzhinweis.
   const ackDisclaimer = () => {
     if (includeDisclaimer) updateSettings({ disclaimerAccepted: true })
@@ -122,17 +129,36 @@ export function StartupStorageDialog() {
       maxWidth={460}
       // Erststart: nur per Knopf schließbar (Disclaimer bewusst quittieren).
       dismissable={!includeDisclaimer}
-      footer={<ModalButton onClick={close}>{closeLabel}</ModalButton>}
+      footer={
+        <ModalButton onClick={close} disabled={blocked}>
+          {closeLabel}
+        </ModalButton>
+      }
     >
       <div className="space-y-4 px-5 py-4 text-[13.5px] leading-relaxed">
         {includeDisclaimer && (
-          <div className="border-warning/40 bg-warning/10 text-text flex items-start gap-2.5 rounded-[var(--radius-card)] border px-3 py-2.5">
-            <span className="shrink-0 text-base">⚠️</span>
-            <p>
-              <strong>Nur anonymisierte Bilder.</strong> Lade keine Patientendaten
-              hoch (keine Namen, Geburtsdaten, IDs im Bild). Deine Daten bleiben
-              lokal — liegen sie auf einem USB-Stick, ist ein Verlust dein Risiko.
-            </p>
+          <div className="border-warning/40 bg-warning/10 text-text space-y-3 rounded-[var(--radius-card)] border px-3 py-2.5">
+            <div className="flex items-start gap-2.5">
+              <span className="shrink-0 text-base">⚠️</span>
+              <p>
+                <strong>Nur anonymisierte Bilder.</strong> Lade keine
+                Patientendaten hoch (keine Namen, Geburtsdaten, IDs im Bild). Deine
+                Daten bleiben lokal — liegen sie auf einem USB-Stick, ist ein
+                Verlust dein Risiko.
+              </p>
+            </div>
+            <label className="text-text flex cursor-pointer items-start gap-2 text-[12.5px] font-medium">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="mt-0.5 shrink-0 accent-[color:var(--color-accent)]"
+              />
+              <span>
+                Ich habe verstanden und verwende ausschließlich anonymisierte
+                Bilder (keine Patientennamen, Geburtsdaten oder IDs im Bild).
+              </span>
+            </label>
           </div>
         )}
 
@@ -158,17 +184,21 @@ export function StartupStorageDialog() {
 
         {supported && (
           <div className="flex flex-wrap gap-2">
-            <ModalButton variant="primary" onClick={onConnectNew}>
+            <ModalButton variant="primary" onClick={onConnectNew} disabled={blocked}>
               Neue Datendatei anlegen …
             </ModalButton>
-            <ModalButton onClick={onOpenExisting}>
+            <ModalButton onClick={onOpenExisting} disabled={blocked}>
               Bestehende Datei öffnen …
             </ModalButton>
           </div>
         )}
 
         {showExport && (
-          <ModalButton variant={supported ? 'default' : 'primary'} onClick={onExport}>
+          <ModalButton
+            variant={supported ? 'default' : 'primary'}
+            onClick={onExport}
+            disabled={blocked}
+          >
             {exported ? 'Backup gespeichert ✓' : 'Jetzt exportieren (Backup)'}
           </ModalButton>
         )}
